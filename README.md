@@ -127,39 +127,11 @@ API được thiết kế với 3 endpoint chính:
 
 ## Cách sử dụng
 
-### Upload tài liệu
+# Cài đặt và chạy Milvus Database
+1.Khởi động Docker Desktop
+2.Mở Terminal/Command Prompt, chạy lệnh: docker compose up --build
+Option: Cài đặt attu để view data đã seed vào Milvus:
 
-```python
-import requests
-
-url = "http://localhost:5000/upload"
-files = {"file": open("document.pdf", "rb")}
-response = requests.post(url, files=files)
-print(response.json())
-```
-
-### Đặt câu hỏi
-
-```python
-import requests
-import json
-
-url = "http://localhost:5000/ask"
-data = {"question": "Giải thích khái niệm X trong tài liệu?"}
-headers = {"Content-Type": "application/json"}
-response = requests.post(url, data=json.dumps(data), headers=headers)
-print(response.json())
-```
-
-### Sử dụng công cụ
-
-```python
-import requests
-import json
-
-url = "http://localhost:5000/tools"
-data = {"action": "quiz", "input": "Tạo quiz về chủ đề Y"}
-headers = {"Content-Type": "application/json"}
-response = requests.post(url, data=json.dumps(data), headers=headers)
-print(response.json())
-```
+Chạy lệnh: docker run -p 8000:3000 -e MILVUS_URL={milvus server IP}:19530 zilliz/attu:v2.4
+2 Thay "milvus server IP" bằng IP internet local, cách lấy IP local:
+Chạy lệnh: ipconfig ở cái cuối cùng là ip 
