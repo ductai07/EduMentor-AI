@@ -1,4 +1,4 @@
-## Sơ đồ dự kiến: 
+# Sơ đồ dự kiến: 
 ```mermaid
 flowchart TD
     subgraph Input_Processing ["Xử Lý Đầu Vào"]
@@ -64,9 +64,7 @@ flowchart TD
 
 
 
-# Backend
 
-API cải tiến cho hệ thống hỗ trợ học tập, tập trung vào xử lý tài liệu và truy xuất thông tin thông minh.
 
 ## Cấu trúc API
 
@@ -127,7 +125,7 @@ API được thiết kế với 3 endpoint chính:
 
 ## Cách sử dụng
 
-# Cài đặt và chạy Milvus Database
+### Cài đặt và chạy Milvus Database
 1.Khởi động Docker Desktop
 2.Mở Terminal/Command Prompt, chạy lệnh: docker compose up --build
 Option: Cài đặt attu để view data đã seed vào Milvus:
