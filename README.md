@@ -1,4 +1,5 @@
 # Sơ đồ dự kiến: 
+Hiện tại thì phần Agent_tools cơ bản là xong,phần đầu đã có speech to text model và phần cuối chờ một model text to speech nữa.Tối ưu ở phần đầu vào database với xây UI likely ChatGPT clone nữa là chắc đủ làm đồ án.
 ```mermaid
 flowchart TD
     subgraph Input_Processing ["Xử Lý Đầu Vào"]
