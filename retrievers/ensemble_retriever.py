@@ -109,47 +109,65 @@ class EnsembleRetriever:
         return self._rerank_results(query, combined_results)[:effective_top_k]
 
     def _vector_search_sync(self, query: str, top_k: int, filter_metadata: Optional[Dict] = None) -> List[Dict[str, Any]]:
-        
+
         if not self.collection or not isinstance(self.collection, Collection):
+            print("Warning: Milvus collection not available for vector search.") # Added warning
             return []
 
         # Generate query embedding
         query_embedding = self.model.encode(query, normalize_embeddings=True)
         search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
 
-         
-        expr = "id >= 0"  
+
+        expr = "id >= 0"
         if filter_metadata is not None and filter_metadata:  # Check for non-empty dict
             expr_parts = [expr]
             for key, value in filter_metadata.items():
                 
-                safe_value = str(value).replace("'", "''")
-                expr_parts.append(f"json_contains(metadata, '{{\"{key}\": \"{safe_value}\"}}')")
+                safe_value = json.dumps(value) 
+                expr_parts.append(f"metadata['{key}'] == {safe_value}")
+                # Or using json_contains if value is complex or you need partial match:
+                # expr_parts.append(f"json_contains(metadata, '{{\"{key}\": {safe_value}}}')")
             expr = " and ".join(expr_parts)
+            print(f"Using filter expression: {expr}") # Debugging print
 
         # Perform vector search
-        results = self.collection.search(
-            data=[query_embedding.tolist()],  # Convert numpy array to list
-            anns_field="embedding",          # Field storing embeddings in Milvus
-            param=search_params,             # Search parameters
-            limit=top_k,                     # Limit to top_k results
-            expr=expr,                       # Filter expression
-            output_fields=["id", "text", "metadata"]  # Fields to return
-        )
+        try: # Add try-except for robustness
+            results = self.collection.search(
+                data=[query_embedding.tolist()],  # Convert numpy array to list
+                anns_field="embedding",          # Field storing embeddings in Milvus
+                param=search_params,             # Search parameters
+                limit=top_k,                     # Limit to top_k results
+                expr=expr,                       # Filter expression
+                output_fields=["id", "text", "metadata"]  # Fields to return
+            )
+        except Exception as e:
+            print(f"Error during Milvus search: {e}") # Log the error
+            return []
+
 
         # Process search results
         output = []
-        if results and len(results) > 0 and len(results[0]) > 0:  
-            for hit in results[0]:   
-                score = 1.0 / (1.0 + hit.distance) if hit.distance >= 0 else 1.0   similarity
-                entity = hit.entity
+        if results and len(results) > 0 and len(results[0]) > 0:
+            for hit in results[0]:
+                score = 1.0 / (1.0 + hit.distance) if hit.distance >= 0 else 1.0
+                # --- FIX ---
+                text_content = getattr(hit.entity, 'text', '') # Default to empty string if 'text' attribute missing
+                metadata_content = getattr(hit.entity, 'metadata', '{}') # Default to empty JSON string if 'metadata' attribute missing
+                # --- END OF FIX ---
+
                 output.append({
-                    "id": hit.id,                   
-                    "text": entity.get("text") or "", # Text content, default to empty string if missing
+                    "id": hit.id,
+                    "text": text_content,           # Use the retrieved text
                     "score": score,                 # Similarity score
                     "source": "vector",             # Source indicator
-                    "metadata": entity.get("metadata", "{}")  # Metadata, default to empty JSON string
+                    "metadata": metadata_content    # Use the retrieved metadata
                 })
+        elif results and len(results) > 0 and len(results[0]) == 0:
+             print("Vector search returned results structure, but no hits found (possibly due to filter).") # More info
+        elif not results:
+             print("Vector search returned None or empty results.") # More info
+
 
         return output
 

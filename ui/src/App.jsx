@@ -1,23 +1,22 @@
-import { useState, useRef, useEffect } from "react"; // Giữ lại hooks nếu cần ở đâu đó, hoặc xóa nếu App không dùng trực tiếp
+import { useState } from "react";
+import { Routes, Route, Navigate, Link, Outlet } from "react-router-dom"; // Import Outlet
 import Sidebar from "./components/Sidebar";
-// import ChatWindow from "./components/ChatWindow"; // Xóa import ChatWindow cũ nếu có
-import ChatInterface from "./components/ChatInterface"; // *** THÊM IMPORT NÀY ***
+import ChatInterface from "./components/ChatInterface";
 import StatsDashboard from "./components/StatsDashboard";
 import Tools from "./components/Tools";
 import NavBar from "./components/NavBar";
 import FileUploader from "./components/FileUploader";
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom"; // Thêm Link nếu dùng trong FeatureCard
+import Login from "./components/Login"; // Import Login
+import Register from "./components/Register"; // Import Register
+import ProtectedRoute from "./components/ProtectedRoute"; // Import ProtectedRoute
 import { TypeAnimation } from "react-type-animation";
-// import ScaleLoader from "react-spinners/ScaleLoader"; // Xóa nếu không dùng trực tiếp trong App.jsx (ChatInterface đã import riêng)
-
-// Import images - bạn cần thêm chúng vào thư mục assets
-import robotImage from "./assets/robot_image.png"; // Giữ lại nếu dùng ở đâu đó
-import avatarImage from "./assets/avatar.jpg"; // Giữ lại nếu dùng ở đâu đó
 import edubotLogo from "./assets/edubot-logo.svg";
+import { useAuth } from "./contexts/AuthContext"; // Import useAuth to check auth status
 
-// --- HomePage Component (Giữ nguyên) ---
+// --- HomePage Component (Moved inside App or keep separate, ensure imports are correct) ---
 const HomePage = () => {
   const [showUploader, setShowUploader] = useState(false);
+  const { isAuthenticated } = useAuth(); // Get auth status
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -25,9 +24,9 @@ const HomePage = () => {
         <img src={edubotLogo} alt="AI Assistant" className="w-40 h-40 mx-auto mb-4 animate-pulse" style={{animationDuration: '3s'}} />
         <TypeAnimation
           sequence={[
-            'Welcome to EduMentor AI', 1000,
-            'Your intelligent learning assistant', 1000,
-            'Ask me anything about your studies', 1000
+            'Chào mừng đến với EduMentor AI', 1000,
+            'Trợ lý học tập thông minh của bạn', 1000,
+            'Hãy hỏi tôi bất cứ điều gì về việc học của bạn', 1000
           ]}
           wrapper="h1"
           speed={50}
@@ -36,35 +35,47 @@ const HomePage = () => {
         />
       </div>
       <p className="text-xl text-gray-300 max-w-2xl mb-8 animate-fadeIn" style={{animationDelay: '0.5s'}}>
-        Your intelligent learning assistant that helps you understand complex concepts,
-        create study materials, and master your subjects more effectively.
+      Hãy để EduMentor AI đồng hành cùng bạn
+      trên hành trình chinh phục tri thức suốt đời. Let's go!!
       </p>
+      {/* Conditionally render cards based on auth status or keep them always visible */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl animate-fadeIn" style={{animationDelay: '0.8s'}}>
         <FeatureCard
           title="Smart Chat"
           description="Ask questions about your learning materials and get intelligent answers"
           icon="chat"
-          linkTo="/chat" // Sử dụng Link thay vì <a> nếu muốn SPA navigation
+          linkTo="/chat"
         />
         <FeatureCard
           title="Learning Tools"
           description="Create quizzes, flashcards, mind maps and more"
           icon="tools"
-          linkTo="/tools" // Sử dụng Link thay vì <a>
+          linkTo="/tools"
         />
-        <FeatureCard
-          title="Upload Documents"
-          description="Add your learning materials to enhance your experience"
-          icon="upload"
-          onClick={() => setShowUploader(true)}
-        />
+         {/* Only show upload if authenticated */}
+         {isAuthenticated && (
+            <FeatureCard
+              title="Upload Documents"
+              description="Add your learning materials to enhance your experience"
+              icon="upload"
+              onClick={() => setShowUploader(true)}
+            />
+         )}
+         {!isAuthenticated && (
+             <FeatureCard
+              title="Login / Register"
+              description="Access all features by logging in or creating an account"
+              icon="auth" // Add an appropriate icon if needed
+              linkTo="/login"
+            />
+         )}
       </div>
 
-      {/* Upload Modal */}
-      {showUploader && (
+      {/* Upload Modal - Only shown if button is clicked (which requires auth) */}
+      {showUploader && isAuthenticated && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar"> {/* Thêm custom-scrollbar */}
-            <div className="sticky top-0 bg-gray-900 flex justify-between items-center p-4 border-b border-gray-700 z-10"> {/* Header modal */}
+          <div className="bg-gray-900 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="sticky top-0 bg-gray-900 flex justify-between items-center p-4 border-b border-gray-700 z-10">
               <h2 className="text-xl font-bold">Upload Learning Materials</h2>
               <button
                 onClick={() => setShowUploader(false)}
@@ -77,7 +88,6 @@ const HomePage = () => {
               </button>
             </div>
             <div className="p-4">
-              {/* Đảm bảo FileUploader được import và hoạt động */}
               <FileUploader />
             </div>
           </div>
@@ -87,9 +97,35 @@ const HomePage = () => {
   );
 };
 
-// --- App Component (Đã sửa đổi) ---
+// --- Main Layout for Authenticated Users ---
+const MainLayout = () => {
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+      <NavBar />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="hidden md:block w-64 flex-shrink-0 bg-gray-900">
+          <Sidebar />
+        </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 overflow-y-auto"> {/* Allow content to scroll */}
+            <Outlet /> {/* Nested routes render here */}
+          </main>
+          <footer className="bg-gray-800 bg-opacity-50 text-center text-gray-400 text-xs py-1 border-t border-gray-700 flex-shrink-0">
+            <div className="flex items-center justify-center">
+              <img src={edubotLogo} alt="EduMentor" className="w-3 h-3 mr-1.5" />
+              <span>EduMentor AI © 2025</span>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// --- App Component (Handles Routing) ---
 function App() {
-  // Giữ lại state này để truyền vào ChatInterface
+  // Keep state here if needed by multiple components within MainLayout
   const [commonQuestions, setCommonQuestions] = useState([
     "Làm thế nào để tạo bài kiểm tra?",
     "Cách tạo flashcard hiệu quả?",
@@ -100,51 +136,32 @@ function App() {
   ]);
 
   return (
-    <BrowserRouter>
-      <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-        {/* NavBar cố định ở trên cùng */}
-        <NavBar />
+    // BrowserRouter is now in main.jsx
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-        {/* Layout chính: Sidebar (desktop) + Content Area */}
-        <div className="flex flex-1 overflow-hidden"> {/* Ngăn scroll ở đây */}
-          {/* Sidebar chỉ hiển thị trên màn hình lớn */}
-          <div className="hidden md:block w-64 flex-shrink-0 bg-gray-900"> {/* Thêm màu nền cho Sidebar */}
-            <Sidebar />
-          </div>
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+        {/* Routes rendered inside MainLayout's Outlet */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/chat" element={<ChatInterface commonQuestions={commonQuestions} />} />
+        <Route path="/stats" element={<StatsDashboard />} />
+        <Route path="/tools" element={<Tools />} />
+        <Route path="/tools/:toolId" element={<Tools />} />
+        {/* Add other protected routes here (e.g., /profile) */}
+      </Route>
 
-          {/* Khu vực nội dung chính (chiếm phần còn lại và quản lý scroll nội bộ) */}
-          <div className="flex-1 flex flex-col overflow-hidden"> {/* Ngăn scroll ở đây */}
-            {/* Phần nội dung chính cho Routes */}
-            <main className="flex-1 overflow-hidden"> {/* Cho phép content bên trong tự scroll nếu cần (ChatInterface tự xử lý) */}
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                {/* *** SỬ DỤNG ChatInterface VÀ TRUYỀN commonQuestions *** */}
-                <Route path="/chat" element={<ChatInterface commonQuestions={commonQuestions} />} />
-                <Route path="/stats" element={<StatsDashboard />} />
-                <Route path="/tools" element={<Tools />} />
-                {/* Route mặc định chuyển hướng về trang chủ */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-
-            {/* Footer đặt bên ngoài main để không bị ảnh hưởng bởi scroll của main */}
-            <footer className="bg-gray-800 bg-opacity-50 text-center text-gray-400 text-xs py-1 border-t border-gray-700 flex-shrink-0"> {/* flex-shrink-0 để footer không bị co lại */}
-              <div className="flex items-center justify-center">
-                <img src={edubotLogo} alt="EduMentor" className="w-3 h-3 mr-1.5" /> {/* Tăng kích thước logo một chút */}
-                <span>EduMentor AI © 2025</span>
-              </div>
-            </footer>
-          </div>
-        </div>
-      </div>
-    </BrowserRouter>
+      {/* Fallback for unknown routes (optional: redirect to login or home) */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
-// --- FeatureCard Component (Sửa đổi để dùng Link) ---
+// --- FeatureCard Component (Sửa đổi để dùng Link, add 'auth' icon case) ---
 const FeatureCard = ({ title, description, icon, linkTo, onClick }) => {
   const getIcon = () => {
-    // (Giữ nguyên logic getIcon)
     switch (icon) {
       case "chat":
         return (
@@ -164,6 +181,12 @@ const FeatureCard = ({ title, description, icon, linkTo, onClick }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
           </svg>
         );
+       case "auth": // Icon for Login/Register card
+         return (
+            <svg className="w-12 h-12 text-yellow-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+         );
       default: return null;
     }
   };
@@ -172,38 +195,31 @@ const FeatureCard = ({ title, description, icon, linkTo, onClick }) => {
     <div className="flex flex-col items-center">
       {getIcon()}
       <h3 className="text-xl font-bold mb-2">{title}</h3>
-      <p className="text-gray-400 text-center text-sm">{description}</p> {/* Giảm cỡ chữ description */}
+      <p className="text-gray-400 text-center text-sm">{description}</p>
     </div>
   );
 
-  // Sử dụng Link của react-router-dom thay vì thẻ <a>
+  const commonClasses = "bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 block transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900";
+
   if (linkTo) {
     return (
-      <Link // *** THAY ĐỔI TỪ <a> SANG <Link> ***
-        to={linkTo}
-        className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 block transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-      >
+      <Link to={linkTo} className={commonClasses}>
         {cardContent}
       </Link>
     );
   }
 
-  // Giữ nguyên div cho trường hợp onClick
   return (
     <div
-      className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 cursor-pointer transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+      className={`${commonClasses} cursor-pointer`}
       onClick={onClick}
-      role="button" // Thêm role cho accessibility
-      tabIndex={0} // Cho phép focus bằng bàn phím
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }} // Kích hoạt bằng Enter/Space
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
     >
       {cardContent}
     </div>
   );
 };
-
-
-// --- XÓA BỎ TOÀN BỘ COMPONENT EnhancedChatWindow ở đây ---
-
 
 export default App;

@@ -1,28 +1,58 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSend, FiLoader } from 'react-icons/fi';
-import { askQuestion } from '../services/api';
+import { askQuestion, getChatHistory } from '../services/api'; // Import getChatHistory
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 import { TypeAnimation } from 'react-type-animation';
 
 function ChatInterface() {
-  const [messages, setMessages] = useState([
-    // { role: 'assistant', content: 'Xin chào! Tôi có thể giúp gì cho bạn?' } // Tin nhắn chào mừng (tùy chọn)
-  ]);
+  const { currentUser, token } = useAuth(); // Get user and token
+  const [messages, setMessages] = useState([]); // Initialize empty
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
-  const textareaRef = useRef(null); // Ref cho textarea để điều chỉnh chiều cao
+  const textareaRef = useRef(null);
 
-  // --- Logic cuộn xuống cuối ---
+  // --- Fetch Chat History ---
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (currentUser && token) {
+        try {
+          setIsLoading(true); // Show loading indicator while fetching history
+          setError(null);
+          const history = await getChatHistory(currentUser.username, token);
+          // Map fetched history to the component's message format
+          const formattedHistory = history.map(entry => [
+            { role: 'user', content: entry.user, timestamp: entry.timestamp },
+            { role: 'assistant', content: entry.assistant, timestamp: entry.timestamp }
+          ]).flat(); // Flatten the array of pairs
+          setMessages(formattedHistory);
+        } catch (err) {
+          console.error("Lỗi khi tải lịch sử trò chuyện:", err);
+          setError("Không thể tải lịch sử trò chuyện.");
+          setMessages([]); // Clear messages on error
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        // Clear messages if user logs out
+        setMessages([]);
+      }
+    };
+    loadHistory();
+  }, [currentUser, token]); // Re-fetch when user or token changes
+
+  // --- Scroll Logic ---
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []); // useCallback để tránh tạo lại hàm không cần thiết
+  }, []);
 
   useEffect(() => {
+    // Scroll after messages are updated, especially after loading history
     scrollToBottom();
-  }, [messages, scrollToBottom]); // Cuộn mỗi khi messages thay đổi
+  }, [messages, scrollToBottom]);
 
-  // --- Tự động điều chỉnh chiều cao textarea ---
+  // --- Textarea Height Adjustment ---
   const adjustTextareaHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'; // Reset chiều cao
@@ -77,28 +107,31 @@ function ChatInterface() {
       // Hiển thị tin nhắn đang chờ từ assistant
       const loadingMessage = { role: 'assistant', content: 'Đang xử lý...', isLoading: true };
       setMessages(prev => [...prev, loadingMessage]);
-      
-      const response = await askQuestion(userMessage.content);
+
+      // Pass the token to askQuestion
+      const response = await askQuestion(userMessage.content, token);
       console.log('API response:', response); // Ghi log để debug
       const aiContent = formatMessage(response.response || "Xin lỗi, tôi chưa nhận được phản hồi hợp lệ.");
-      
+
       // Thay thế tin nhắn đang chờ bằng tin nhắn thực tế
-      setMessages(prev => prev.map(msg => 
+      setMessages(prev => prev.map(msg =>
         (msg.isLoading) ? { role: 'assistant', content: aiContent, isTyping: true } : msg
       ));
     } catch (err) {
       console.error("Lỗi khi gửi tin nhắn:", err);
-      const errorMessage = err.message || 'Đã có lỗi xảy ra khi kết nối tới máy chủ. Vui lòng thử lại.';
+      const errorDetail = err.response?.data?.detail || err.message; // Get more specific error if available
+      const errorMessage = errorDetail || 'Đã có lỗi xảy ra khi kết nối tới máy chủ. Vui lòng thử lại.';
       setError(errorMessage);
       
       // Thay thế tin nhắn đang chờ bằng tin nhắn lỗi
       setMessages(prev => prev.map(msg => 
         (msg.isLoading) ? { role: 'assistant', content: `Lỗi: ${errorMessage}`, isError: true } : msg
-      ));
-    } finally {
+      )); // End of setMessages call
+    } // Add missing closing brace for catch block
+    finally {
       setIsLoading(false);
     }
-  }, [input, isLoading]); // Dependencies cho useCallback
+  }, [input, isLoading, token]); // Add token to dependencies
 
   const handleInputChange = (e) => {
     setInput(e.target.value);

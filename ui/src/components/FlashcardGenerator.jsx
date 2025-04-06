@@ -1,178 +1,93 @@
 import { useState, useEffect } from 'react';
-import { useTool } from '../services';
-import { FiLayers, FiLoader, FiCheck, FiAlertTriangle } from 'react-icons/fi';
+import { FiLayers, FiLoader, FiCheck, FiAlertTriangle, FiRotateCw } from 'react-icons/fi'; // Add FiRotateCw
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
-const FlashcardGenerator = ({ onSubmit, result, loading, error: parentError }) => {
-  const [topic, setTopic] = useState('');
-  const [flashcards, setFlashcards] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
-  
-  // Sử dụng kết quả từ component cha nếu có
+// Accept props from Tools.jsx
+const FlashcardGenerator = ({ onSubmit, result, loading, error }) => {
+  const [topicInput, setTopicInput] = useState(''); // Separate state for input field
+  const [deckData, setDeckData] = useState(null); // Store the whole deck object {deck_id, topic, cards}
+  // Internal error state for component-specific errors
+  const [localError, setLocalError] = useState(null);
+  const [activeCardIndex, setActiveCardIndex] = useState(0); // Keep for display logic
+  const [showAnswer, setShowAnswer] = useState(false); // Keep for display logic
+  const { token } = useAuth(); // Get token
+
+  // Helper function to validate and set deck data from the result prop
+  const processResult = (data) => {
+    console.log("Processing flashcard data:", data);
+    
+    try {
+      // Try to parse if it's a string
+      const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+      
+      if (parsedData && parsedData.error) {
+        setLocalError(parsedData.error);
+        setDeckData(null);
+        return;
+      }
+      
+      if (parsedData && parsedData.cards && Array.isArray(parsedData.cards)) {
+        setDeckData(parsedData);
+        setActiveCardIndex(0);
+        setShowAnswer(false);
+        setLocalError(null); // Clear previous errors on new data
+        console.log("Successfully set flashcard data:", parsedData);
+      } else {
+        setLocalError("Received invalid flashcard data format.");
+        setDeckData(null);
+        console.error("Invalid flashcard data format:", parsedData);
+      }
+    } catch (err) {
+      console.error("Error processing flashcard data:", err);
+      setLocalError("Có lỗi khi xử lý dữ liệu flashcard: " + err.message);
+      setDeckData(null);
+    }
+  };
+
+  // Process the result prop when it changes
   useEffect(() => {
     if (result) {
-      setFlashcards(parseFlashcards(result));
-      setActiveCardIndex(0);
-      setShowAnswer(false);
+      console.log('FlashcardGenerator received result:', result);
+      processResult(result); // Process the result from parent
+    } else {
+      // Don't clear deck if result becomes null/undefined when switching tabs
+      if (loading) {
+        // Only clear when loading is true (new request started)
+        setDeckData(null);
+        setActiveCardIndex(0);
+        setShowAnswer(false);
+      }
     }
-  }, [result]);
-  
-  // Sử dụng trạng thái loading từ component cha
-  useEffect(() => {
-    if (loading !== undefined) {
-      setIsLoading(loading);
-    }
-  }, [loading]);
-  
-  // Sử dụng lỗi từ component cha
-  useEffect(() => {
-    if (parentError) {
-      setError(parentError);
-    }
-  }, [parentError]);
+  }, [result, loading]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!topic.trim()) return;
-
-    setIsLoading(true);
-    setError(null);
-    setFlashcards(null);
-
-    try {
-      const response = await useTool('flashcard', topic);
-      setFlashcards(parseFlashcards(response.response));
-      setActiveCardIndex(0);
-      setShowAnswer(false);
-    } catch (err) {
-      console.error('Error creating flashcards:', err);
-      setError('Đã xảy ra lỗi khi tạo thẻ ghi nhớ. Vui lòng thử lại sau.');
-    } finally {
-      setIsLoading(false);
+    if (!topicInput.trim() || !token) {
+      return;
     }
+    
+    // Call the onSubmit function passed from Tools.jsx
+    onSubmit(topicInput);
+    
+    // Clear previous deck immediately when submitting a new request
+    setDeckData(null);
+    setActiveCardIndex(0);
+    setShowAnswer(false);
+    setLocalError(null);
   };
 
-  // Hàm phân tích chuỗi phản hồi thành mảng flashcards
-  const parseFlashcards = (responseText) => {
-    // Nếu phản hồi đã là đối tượng có thuộc tính flashcards
-    if (typeof responseText === 'object' && responseText.flashcards) {
-      return responseText.flashcards;
-    }
-
-    // Nếu phản hồi là chuỗi, phân tích nó
-    const cards = [];
-    const lines = responseText.split('\n');
-    let currentCard = null;
-    let collectingFront = false;
-    let collectingBack = false;
-    
-    // Regex để nhận dạng các dòng đặc biệt
-    const flashcardRegex = /FLASHCARD\s+#\d+:?/i;
-    const frontRegex = /Mặt\s+trước:?/i;
-    const backRegex = /Mặt\s+sau:?/i;
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Bỏ qua dòng trống
-      if (!line) continue;
-      
-      // Bắt đầu flashcard mới
-      if (flashcardRegex.test(line)) {
-        // Lưu flashcard trước đó nếu có
-        if (currentCard && currentCard.term && currentCard.definition) {
-          cards.push(currentCard);
-        }
-        
-        // Tạo flashcard mới
-        currentCard = { term: '', definition: '' };
-        collectingFront = false;
-        collectingBack = false;
-        continue;
-      }
-      
-      // Bắt đầu phần mặt trước
-      if (frontRegex.test(line)) {
-        collectingFront = true;
-        collectingBack = false;
-        // Lấy nội dung sau "Mặt trước:" nếu có
-        const content = line.replace(frontRegex, '').trim();
-        if (content) {
-          currentCard.term = content;
-        }
-        continue;
-      }
-      
-      // Bắt đầu phần mặt sau
-      if (backRegex.test(line)) {
-        collectingFront = false;
-        collectingBack = true;
-        // Lấy nội dung sau "Mặt sau:" nếu có
-        const content = line.replace(backRegex, '').trim();
-        if (content) {
-          currentCard.definition = content;
-        }
-        continue;
-      }
-      
-      // Thu thập nội dung cho mặt trước hoặc mặt sau
-      if (collectingFront) {
-        currentCard.term += (currentCard.term ? '\n' : '') + line;
-      } else if (collectingBack) {
-        currentCard.definition += (currentCard.definition ? '\n' : '') + line;
-      }
-    }
-    
-    // Thêm flashcard cuối cùng nếu có
-    if (currentCard && currentCard.term && currentCard.definition) {
-      cards.push(currentCard);
-    }
-    
-    // Nếu không tìm thấy flashcard theo định dạng trên, thử phân tích theo định dạng khác
-    if (cards.length === 0) {
-      // Thử tìm theo định dạng gạch đầu dòng
-      let currentTerm = '';
-      let currentDefinition = '';
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.startsWith('- ')) {
-          // Lưu flashcard trước đó nếu có
-          if (currentTerm && currentDefinition) {
-            cards.push({ term: currentTerm, definition: currentDefinition });
-            currentDefinition = '';
-          }
-          // Lấy term mới
-          currentTerm = line.substring(2).split(':')[0].trim();
-          // Lấy phần định nghĩa (nếu có)
-          const defPart = line.split(':').slice(1).join(':').trim();
-          currentDefinition = defPart;
-        } else if (line && currentTerm) {
-          // Thêm vào definition
-          currentDefinition += ' ' + line;
-        }
-      }
-      
-      // Thêm flashcard cuối cùng
-      if (currentTerm && currentDefinition) {
-        cards.push({ term: currentTerm, definition: currentDefinition });
-      }
-    }
-
-    return cards;
-  };
+  // Display current cards or empty array
+  const currentCards = deckData?.cards || [];
 
   const nextCard = () => {
-    if (flashcards && activeCardIndex < flashcards.length - 1) {
+    if (currentCards.length > 0 && activeCardIndex < currentCards.length - 1) {
       setActiveCardIndex(activeCardIndex + 1);
       setShowAnswer(false);
     }
   };
 
   const prevCard = () => {
-    if (flashcards && activeCardIndex > 0) {
+    if (currentCards.length > 0 && activeCardIndex > 0) {
       setActiveCardIndex(activeCardIndex - 1);
       setShowAnswer(false);
     }
@@ -182,143 +97,135 @@ const FlashcardGenerator = ({ onSubmit, result, loading, error: parentError }) =
     setShowAnswer(!showAnswer);
   };
 
+  // Combine errors from props and local state
+  const displayError = error || localError;
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="bg-gray-800 rounded-lg p-6 mb-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center">
-          <FiLayers className="mr-2" />
-          Tạo thẻ ghi nhớ
+    <div className="h-full flex flex-col p-4 md:p-6"> {/* Add padding */}
+      <div className="bg-gray-800 rounded-lg p-4 md:p-6 mb-6 shadow-lg"> {/* Add shadow */}
+        <h2 className="text-xl font-bold mb-4 flex items-center text-gray-100">
+          <FiLayers className="mr-2 text-cyan-400" /> {/* Color icon */}
+          Tạo thẻ ghi nhớ (Flashcards)
         </h2>
-        <p className="text-gray-300 mb-4">
-          Nhập chủ đề bạn muốn tạo thẻ ghi nhớ và hệ thống sẽ tạo các thẻ ghi nhớ dựa trên tài liệu có sẵn.
+        <p className="text-gray-300 mb-4 text-sm">
+          Nhập chủ đề bạn muốn học. Hệ thống sẽ tạo các thẻ ghi nhớ dựa trên tài liệu đã được tải lên.
         </p>
-        
+
         <form onSubmit={handleSubmit} className="mt-4">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3"> {/* Adjust gap */}
             <input
               type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Nhập chủ đề (ví dụ: Machine Learning, Neural Networks, etc.)"
-              className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
+              value={topicInput}
+              onChange={(e) => setTopicInput(e.target.value)}
+              placeholder="Nhập chủ đề (ví dụ: Machine Learning)"
+              className="flex-grow bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent placeholder-gray-500" // Style input
+              disabled={loading} // Use loading prop
             />
             <button
               type="submit"
-              disabled={isLoading || !topic.trim()}
-              className={`bg-blue-600 text-white rounded-lg px-6 py-2 flex items-center justify-center ${isLoading || !topic.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+              disabled={loading || !topicInput.trim() || !token} // Use loading prop and check token
+              className={`bg-cyan-600 text-white rounded-md px-5 py-2 flex items-center justify-center transition duration-150 ease-in-out ${loading || !topicInput.trim() || !token ? 'opacity-60 cursor-not-allowed' : 'hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-gray-800'}`} // Use loading prop
             >
-              {isLoading ? (
+              {loading ? ( // Use loading prop
                 <>
                   <FiLoader className="animate-spin mr-2" />
                   Đang tạo...
                 </>
               ) : (
-                'Tạo thẻ ghi nhớ'
+                'Tạo thẻ'
               )}
             </button>
           </div>
+           {!token && <p className="text-xs text-yellow-400 mt-2">Bạn cần đăng nhập để sử dụng tính năng này.</p>}
         </form>
 
-        {error && (
-          <div className="mt-4 text-red-400 bg-red-900/20 p-3 rounded-lg flex items-center">
-            <FiAlertTriangle className="mr-2" />
-            {error}
+        {/* Display generation error using error prop */}
+        {displayError && !loading && (
+          <div className="mt-4 text-red-400 bg-red-900/30 p-3 rounded-md flex items-center text-sm border border-red-700"> {/* Style error */}
+            <FiAlertTriangle className="mr-2 flex-shrink-0" />
+            <span>{displayError}</span>
           </div>
         )}
       </div>
 
-      {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <FiLoader className="animate-spin text-4xl text-blue-500 mb-4" />
-            <p className="text-gray-300">Đang tạo thẻ ghi nhớ...</p>
+      {/* Flashcard Display Area */}
+      <div className="flex-1 flex flex-col min-h-0"> {/* Allow this area to grow and handle overflow */}
+        {loading ? ( // Use loading prop for generation loading
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            <FiLoader className="animate-spin text-4xl text-cyan-500" />
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col">
-          {flashcards && flashcards.length > 0 ? (
-            <div className="flex-1 flex flex-col">
-              <div className="mb-4 flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Thẻ ghi nhớ: {topic}</h3>
-                <div className="text-sm text-gray-400">
-                  {activeCardIndex + 1} / {flashcards.length}
+        ) : deckData && currentCards.length > 0 ? ( // Use internal deckData state (updated by useEffect)
+          <div className="flex-1 flex flex-col items-center justify-center">
+            {/* Card Title and Counter */}
+            <div className="w-full max-w-2xl mb-3 text-center">
+              <h3 className="text-lg font-semibold text-gray-200">
+                Bộ thẻ: {deckData.topic || 'Chưa có chủ đề'}
+              </h3>
+              <p className="text-sm text-gray-400">
+                Thẻ {activeCardIndex + 1} / {currentCards.length}
+              </p>
+            </div>
+
+            {/* Flashcard itself (perspective effect) */}
+            <div className="w-full max-w-2xl h-64 md:h-80 [perspective:1000px] mb-4">
+              <div
+                className={`relative w-full h-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] ${showAnswer ? '[transform:rotateY(180deg)]' : ''}`}
+                onClick={toggleAnswer} // Allow clicking the card to flip
+              >
+                {/* Front */}
+                <div className="absolute w-full h-full bg-gradient-to-br from-gray-700 to-gray-600 rounded-lg shadow-lg flex items-center justify-center p-6 text-center [backface-visibility:hidden]">
+                  <p className="text-xl md:text-2xl font-medium text-white">
+                    {currentCards[activeCardIndex]?.front || 'Lỗi: Thiếu mặt trước'}
+                  </p>
                 </div>
-              </div>
-              
-              <div className="flex-1 flex flex-col">
-                <div className="flex-1 bg-gray-700 rounded-lg overflow-hidden flex flex-col mb-4">
-                  <div className="p-6 bg-blue-900/30 border-b border-gray-600">
-                    <h4 className="text-xl font-medium text-center">{flashcards[activeCardIndex].term}</h4>
-                  </div>
-                  
-                  {showAnswer ? (
-                    <div className="p-6 flex-1 flex items-center justify-center bg-gray-800">
-                      <div className="text-gray-200 text-center whitespace-pre-wrap">
-                        <div className="prose prose-invert max-w-none">
-                          {flashcards[activeCardIndex].definition.split('\n').map((paragraph, idx) => {
-                            if (paragraph.trim() === '') return <br key={idx} />;
-                            if (paragraph.startsWith('-') || paragraph.match(/^\d+\.\s/)) {
-                              return (
-                                <div key={idx} className="flex items-start text-left ml-4 mt-2">
-                                  <span className="mr-2">{paragraph.startsWith('-') ? '•' : paragraph.match(/^(\d+)\./)[1] + '.'}</span>
-                                  <span>{paragraph.replace(/^-\s|^\d+\.\s/, '')}</span>
-                                </div>
-                              );
-                            }
-                            return <p key={idx} className="mb-2 text-left">{paragraph}</p>;
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-6 flex-1 flex items-center justify-center bg-gray-800">
-                      <button 
-                        onClick={toggleAnswer}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors"
-                      >
-                        Hiển thị đáp án
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex justify-between">
-                  <button
-                    onClick={prevCard}
-                    disabled={activeCardIndex === 0}
-                    className={`px-4 py-2 rounded-lg ${activeCardIndex === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white'}`}
-                  >
-                    Trước
-                  </button>
-                  
-                  <button
-                    onClick={toggleAnswer}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
-                  >
-                    {showAnswer ? 'Ẩn đáp án' : 'Hiển thị đáp án'}
-                  </button>
-                  
-                  <button
-                    onClick={nextCard}
-                    disabled={activeCardIndex === flashcards.length - 1}
-                    className={`px-4 py-2 rounded-lg ${activeCardIndex === flashcards.length - 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white'}`}
-                  >
-                    Tiếp theo
-                  </button>
+                {/* Back */}
+                <div className="absolute w-full h-full bg-gradient-to-br from-cyan-800 to-cyan-700 rounded-lg shadow-lg flex items-center justify-center p-6 text-center [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                  <p className="text-lg md:text-xl text-white whitespace-pre-wrap">
+                    {currentCards[activeCardIndex]?.back || 'Lỗi: Thiếu mặt sau'}
+                  </p>
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <FiLayers className="text-5xl mb-4 mx-auto opacity-20" />
-                <p>Nhập chủ đề và nhấn "Tạo thẻ ghi nhớ" để bắt đầu</p>
-              </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-center items-center gap-4 w-full max-w-2xl">
+              <button
+                onClick={prevCard}
+                disabled={activeCardIndex === 0}
+                className={`px-4 py-2 rounded-lg text-sm ${activeCardIndex === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500 text-white transition-colors'}`}
+                aria-label="Previous Card"
+              >
+                Trước
+              </button>
+
+              <button
+                onClick={toggleAnswer}
+                className="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+                aria-label={showAnswer ? 'Hide Answer' : 'Show Answer'}
+              >
+                 <FiRotateCw className={`transition-transform duration-300 ${showAnswer ? 'rotate-180' : ''}`} />
+                 {showAnswer ? 'Ẩn' : 'Lật'}
+              </button>
+
+              <button
+                onClick={nextCard}
+                disabled={activeCardIndex === currentCards.length - 1}
+                className={`px-4 py-2 rounded-lg text-sm ${activeCardIndex === currentCards.length - 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500 text-white transition-colors'}`}
+                aria-label="Next Card"
+              >
+                Tiếp
+              </button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : !displayError ? ( // Use combined error state to decide whether to show initial message
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="text-center">
+              <FiLayers className="text-5xl mb-4 mx-auto opacity-30" />
+              <p>Nhập chủ đề và nhấn "Tạo thẻ" để bắt đầu.</p>
+            </div>
+          </div>
+        ) : null /* Don't show initial message if there's an error */ }
+      </div>
     </div>
   );
 };

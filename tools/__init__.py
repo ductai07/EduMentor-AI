@@ -24,7 +24,7 @@ def register_all_tools(registry: ToolRegistry):
     # Khởi tạo và đăng ký từng tool
     # Đảm bảo không có lỗi cú pháp ở đây
     registry.register_tool(RAGSearchTool())
-    registry.register_tool(WebSearchTool()) # Đảm bảo SERPER_API_KEY được cấu hình
+    registry.register_tool(WebSearchTool()) # Đảm bảo TAVILY_API_KEY được cấu hình
     registry.register_tool(QuizGenerator())
     registry.register_tool(StudyPlanCreatorTool())
     registry.register_tool(FlashcardGeneratorTool())

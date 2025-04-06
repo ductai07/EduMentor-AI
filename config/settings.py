@@ -12,6 +12,18 @@ MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
 DEFAULT_COLLECTION_NAME = "learning_docs_v3"
 MILVUS_COLLECTION = os.getenv("MILVUS_COLLECTION", DEFAULT_COLLECTION_NAME)
 
+# --- MongoDB Configuration ---
+MONGODB_HOST = os.getenv("MONGODB_HOST", "localhost") 
+MONGODB_PORT = int(os.getenv("MONGODB_PORT", 27017))
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "edumentor")
+MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "edumentor")
+MONGODB_URI = os.getenv("MONGODB_URI", f"mongodb://{MONGODB_HOST}:{MONGODB_PORT}")
+
+# --- JWT Authentication ---
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-please-change-in-production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))  # 1 day
+
 # --- Embedding Model ---
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
@@ -22,6 +34,7 @@ LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.2))
 
 # --- Web Search Configuration ---
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 # --- Indexing Configuration ---
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 500))

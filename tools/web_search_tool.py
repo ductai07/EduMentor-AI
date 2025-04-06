@@ -2,7 +2,7 @@ import aiohttp
 import logging
 from typing import List, Dict, Any
 from .base_tool import BaseTool
-from config.settings import SERPER_API_KEY
+from config.settings import TAVILY_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -41,29 +41,30 @@ class WebSearchTool(BaseTool):
             return f"Lỗi khi tìm kiếm '{query}': {str(e)}"
     
     async def search(self, query: str, num_results: int = 5) -> List[Dict[str, Any]]:
-        """Thực hiện tìm kiếm qua Serper API bất đồng bộ"""
-        if not SERPER_API_KEY:
-            raise ValueError("SERPER_API_KEY không được cấu hình")
+        """Thực hiện tìm kiếm qua Tavily API bất đồng bộ"""
+        if not TAVILY_API_KEY:
+            raise ValueError("TAVILY_API_KEY không được cấu hình")
         
-        # Sửa URL và header nếu dùng Serper API
-        url = "https://google.serper.dev/search"
-        headers = {"X-API-KEY": SERPER_API_KEY}
+        # Sử dụng Tavily API
+        url = "https://api.tavily.com/search"
+        headers = {"Authorization": f"Bearer {TAVILY_API_KEY}"}
         payload = {
-            "q": query,
-            "num": num_results
+            "query": query,
+            "max_results": num_results,
+            "search_depth": "basic"
         }
         
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as response:
                 response.raise_for_status()
                 search_results = await response.json()
         
         results = []
-        if "organic" in search_results:
-            for result in search_results["organic"]:
+        if "results" in search_results:
+            for result in search_results["results"]:
                 results.append({
                     "title": result.get("title", ""),
-                    "link": result.get("link", ""),
-                    "snippet": result.get("snippet", "")
+                    "link": result.get("url", ""),
+                    "snippet": result.get("content", "")
                 })
         return results
