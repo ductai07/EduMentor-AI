@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiHome, FiMessageSquare, FiBarChart2, FiTool, FiHelpCircle, FiUser, FiLogOut, FiLogIn } from "react-icons/fi"; // Add User/Logout icons
-import edubotLogo from "../assets/edubot-logo.svg";
+import edubotLogo from "../assets/duu.png";
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 const NavBar = () => {

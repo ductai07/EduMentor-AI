@@ -12,8 +12,32 @@ const FALLBACK_MARKDOWN = `# 🧠 Mind Map Mẫu
   - 📱 Ứng dụng thực tiễn
 - 📝 Nhánh 3: Tổng kết`;
 
-// Tạo transformer với các plugin cần thiết
+// Tạo transformer với các plugin cần thiết - đảm bảo chỉ tạo một lần
 const transformer = new Transformer();
+
+// ADDED: Hàm xử lý markdown để đảm bảo chỉ có một heading level 1
+const preprocessMarkdown = (markdown) => {
+  if (!markdown) return FALLBACK_MARKDOWN;
+  
+  // Tách các dòng để phân tích
+  const lines = markdown.split('\n');
+  let firstH1Found = false;
+  const processedLines = lines.map(line => {
+    // Kiểm tra xem dòng có phải là heading level 1 (bắt đầu bằng # và khoảng trắng)
+    if (line.trim().match(/^#\s+/)) {
+      if (!firstH1Found) {
+        firstH1Found = true;
+        return line; // Giữ nguyên H1 đầu tiên
+      } else {
+        // Chuyển H1 thứ hai trở đi thành H2
+        return '#' + line;
+      }
+    }
+    return line;
+  });
+  
+  return processedLines.join('\n');
+};
 
 // Hàm tiện ích để tạo ảnh PNG từ SVG
 const downloadAsPng = (svg, filename = 'mindmap.png') => {
@@ -85,7 +109,23 @@ const MindMapViewer = ({ markdown }) => {
     };
   }, []);
 
+  // Hiển thị thông tin debug
+  const toggleDebugInfo = () => {
+    console.log("MindMap Debug Info:", {
+      ...debugInfo,
+      markdownSample: markdown ? markdown.substring(0, 200) + "..." : "None",
+      svgElement: svgRef.current,
+      markmapInstance: mmRef.current
+    });
+    
+    // Thông báo đã log debug info
+    alert("Đã log thông tin debug vào console. Nhấn F12 để xem.");
+  };
+
   useEffect(() => {
+    // ADDED: Log để debug
+    console.log("MindMapViewer mounting with markdown:", markdown ? `${markdown.substring(0, 50)}...` : "not provided");
+    
     // Cập nhật thông tin debug khi markdown thay đổi
     setDebugInfo(prev => ({
       ...prev,
@@ -100,12 +140,16 @@ const MindMapViewer = ({ markdown }) => {
       setError("Không thể tạo khu vực vẽ mind map");
       return;
     }
+    
+    // ADDED: Kiểm tra xem Markmap đã được tạo chưa
+    console.log("SVG ref exists:", svgRef.current);
 
     // Reset error state
     setError(null);
 
     // Ensure previous instance is destroyed if markdown changes
     if (mmRef.current) {
+      console.log("Destroying previous Markmap instance");
       mmRef.current.destroy();
       mmRef.current = null;
     }
@@ -115,15 +159,16 @@ const MindMapViewer = ({ markdown }) => {
       svgRef.current.removeChild(svgRef.current.lastChild);
     }
 
-    // Thêm thuộc tính width và height để đảm bảo SVG hiển thị đúng
+    // ADDED: Đặt kích thước cố định cho SVG để đảm bảo hiển thị
     svgRef.current.setAttribute('width', '100%');
     svgRef.current.setAttribute('height', '100%');
+    svgRef.current.setAttribute('style', 'width: 100%; height: 100%;');
     
     try {
-      // Sử dụng markdown từ props hoặc fallback nếu không có
-      const mdContent = markdown?.trim() || FALLBACK_MARKDOWN;
+      // MODIFIED: Xử lý markdown để đảm bảo chỉ có một nút gốc (H1)
+      const mdContent = preprocessMarkdown(markdown?.trim());
       
-      console.log("MindMapViewer: Rendering markdown:", mdContent.substring(0, 100) + "...");
+      console.log("MindMapViewer: Rendering preprocessed markdown:", mdContent.substring(0, 100) + "...");
       
       // Transform Markdown to Markmap data structure
       const { root, features } = transformer.transform(mdContent);
@@ -132,94 +177,158 @@ const MindMapViewer = ({ markdown }) => {
         throw new Error("Failed to transform markdown to mind map structure");
       }
 
+      // ADDED: Kiểm tra cấu trúc root để debug
       console.log("MindMapViewer: Transformed data:", { 
         rootKeys: Object.keys(root),
-        childrenCount: root.children?.length || 0
+        rootContent: root.content,
+        childrenCount: root.children?.length || 0,
+        firstChildContent: root.children && root.children.length > 0 ? root.children[0].content : null
       });
 
       // Đánh dấu SVG đã sẵn sàng
       setDebugInfo(prev => ({ ...prev, svgReady: true }));
 
-      // Tùy chỉnh hiển thị các nút nhỏ tượng trưng
+      // MODIFIED: Tùy chỉnh các tùy chọn với màu sắc phù hợp với giao diện tối
       const enhancedOptions = {
-        autoFit: true, // Auto fit content on initial render
-        color: (node) => {
-          // Custom color scheme based on depth & content
+        autoFit: true,
+        paddingX: 16,
+        duration: 500,
+        maxWidth: 300,
+        initialExpandLevel: 999, // Mở tất cả các nhánh
+        backgroundColor: 'transparent', // Đảm bảo nền trong suốt
+        color: d => {
+          // Bảng màu sáng hơn để hiển thị tốt trên nền tối
           const colors = [
-            '#8b5cf6', // Tím - Chủ đề chính 
-            '#6366f1', // Tím nhạt - Nhánh chính
-            '#ec4899', // Hồng - Nhánh phụ cấp 1
-            '#f97316', // Cam - Nhánh phụ cấp 2
-            '#14b8a6', // Xanh ngọc - Nhánh phụ cấp 3
-            '#06b6d4'  // Xanh dương - Nhánh phụ cấp 4
+            '#a78bfa', // Tím nhạt
+            '#93c5fd', // Xanh dương nhạt
+            '#f9a8d4', // Hồng nhạt
+            '#fbbf24', // Vàng
+            '#34d399', // Xanh lá
+            '#fb923c', // Cam
+            '#c4b5fd', // Tím nhạt
           ];
-          
-          // Dùng độ sâu của node để quyết định màu sắc
-          const depth = node.depth || 0;
-          
-          // Nếu node có chứa các ký tự emoji nhất định, ưu tiên màu sắc theo chức năng
-          const text = node.data.text || '';
-          if (text.includes('💡') || text.includes('🔍') || text.includes('❓')) {
-            return '#f59e0b'; // Vàng cho những điểm quan trọng, câu hỏi
-          }
-          if (text.includes('📊') || text.includes('📈') || text.includes('📉')) {
-            return '#10b981'; // Xanh lá cho thống kê, số liệu
-          }
-          if (text.includes('⚠️') || text.includes('🚫') || text.includes('⛔')) {
-            return '#ef4444'; // Đỏ cho cảnh báo, lưu ý
-          }
-          
-          return colors[depth % colors.length];
+          return colors[d.depth % colors.length];
         },
-        paddingX: 16, // Add some padding
-        duration: 500, // Animation duration in ms
-        maxWidth: 300, // Max width for text content
-        nodeFont: (node) => { 
-          // Thay đổi font chữ theo cấp độ
-          const depth = node.depth || 0;
-          if (depth === 0) return 'bold 16px Sans-serif'; // Tiêu đề lớn hơn
-          return '14px Sans-serif'; // Font chữ mặc định
+        // ADDED: Tùy chỉnh phông chữ và nét vẽ cho rõ ràng hơn trên nền tối
+        nodeFont: d => {
+          const depth = d.depth || 0;
+          const size = depth === 0 ? 18 : 14;
+          return `${depth === 0 ? 'bold' : 'normal'} ${size}px system-ui, sans-serif`;
         },
-        nodeMinHeight: 18, // Chiều cao tối thiểu của node
-        spacingVertical: 7, // Khoảng cách dọc giữa các node
-        spacingHorizontal: 120, // Khoảng cách ngang giữa các node
-        embedGlobalCSS: false, // Tắt nhúng CSS toàn cục để tránh xung đột
-        initialExpandLevel: 2, // Mở rộng 2 cấp đầu tiên
-        linkShape: 'diagonal', // Hình dạng đường kết nối - diagonal hoặc bracket
-        // Các tùy chọn không còn được hỗ trợ trong phiên bản mới
-        // richText: true, 
-        // lineWidth: (node) => {
-        //   const depth = node.depth || 0;
-        //   return 2 - Math.min(depth / 5, 0.5);
-        // },
+        nodeMinHeight: 20, // Tăng chiều cao tối thiểu của node
+        spacingVertical: 8, // Tăng khoảng cách dọc
+        spacingHorizontal: 120, // Giữ khoảng cách ngang
+        // ADDED: Tùy chỉnh style của các đường nối
+        linkStyle: () => {
+          return {
+            stroke: '#6d6d6d', // Màu xám nhạt cho đường nối
+            strokeWidth: '1.5px', // Độ dày đường nối
+          };
+        },
+        // ADDED: Tùy chỉnh style chữ
+        nodeStyle: () => {
+          return {
+            fill: '#e2e8f0', // Màu chữ sáng cho nền tối 
+            stroke: 'none',
+            'font-family': 'system-ui, sans-serif',
+          };
+        },
+        // ADDED: Đảm bảo chỉ có một root node hiển thị
+        preset: {
+          wrapText: true,
+          maxWidth: 300,
+        }
       };
 
-      // Tạo instance Markmap với các tùy chọn nâng cao - thêm timeout để đảm bảo DOM đã sẵn sàng
+      // Thêm CSS custom vào document để cải thiện hiển thị
+      if (!document.getElementById('markmap-css-fix')) {
+        const styleTag = document.createElement('style');
+        styleTag.id = 'markmap-css-fix';
+        styleTag.innerHTML = `
+          .markmap-svg .markmap-node-text {
+            fill: #e2e8f0;
+            font-family: system-ui, sans-serif;
+          }
+          .markmap-svg .markmap-node-circle {
+            stroke: rgba(255, 255, 255, 0.1);
+          }
+          .markmap-svg .markmap-link {
+            stroke: #6d6d6d; 
+            stroke-width: 1.5px;
+          }
+          .markmap-svg text {
+            fill: #e2e8f0;
+          }
+          .markmap-svg .markmap-foreign {
+            color: #e2e8f0;
+          }
+        `;
+        document.head.appendChild(styleTag);
+      }
+
+      // MODIFIED: Tạo instance Markmap với cách đơn giản hơn và thêm timeout lâu hơn
       setTimeout(() => {
         try {
-          mmRef.current = Markmap.create(svgRef.current, enhancedOptions, root);
+          console.log("Creating Markmap instance with root:", root);
           
-          // Đảm bảo map được hiển thị đúng sau khi render
+          // ADDED: Đảm bảo chỉ có một nút gốc bằng cách kiểm tra cấu trúc dữ liệu
+          let finalRoot = root;
+          if (Array.isArray(root.children) && root.children.length > 0 && !root.content) {
+            // Nếu root không có nội dung nhưng có con, có thể đây là một wrapper node tự động tạo ra
+            // Trong trường hợp này, ta sử dụng node đầu tiên làm root
+            console.log("Multiple root nodes detected, fixing to use only the first one as main root");
+            finalRoot = {
+              ...root.children[0],
+              children: [...(root.children[0].children || []), ...(root.children.slice(1) || [])]
+            };
+          }
+          
+          // Tạo instance mới với các tùy chọn
+          mmRef.current = Markmap.create(svgRef.current, enhancedOptions, finalRoot);
+          
+          // Thêm timeout lâu hơn để đảm bảo DOM đã được cập nhật
           setTimeout(() => {
             if (mmRef.current) {
-              mmRef.current.fit(); // Fit map to view
+              console.log("Fitting map to view");
+              mmRef.current.fit();
+              
+              // ADDED: Áp dụng CSS trực tiếp vào các phần tử SVG
+              if (svgRef.current) {
+                const textElements = svgRef.current.querySelectorAll('text');
+                textElements.forEach(el => {
+                  el.style.fill = '#e2e8f0';
+                  el.style.fontFamily = 'system-ui, sans-serif';
+                });
+              }
             }
-          }, 100);
+          }, 300);
           
         } catch (err) {
           console.error("Error creating Markmap instance:", err);
           setError(`Lỗi tạo mind map: ${err.message}`);
         }
-      }, 0);
+      }, 100); // Tăng timeout để đảm bảo DOM đã sẵn sàng
 
     } catch (error) {
       console.error("Error rendering Markmap:", error);
       setError(`Lỗi hiển thị mind map: ${error.message}`);
+      
+      // ADDED: Thử render với markdown mẫu nếu có lỗi
+      try {
+        console.log("Attempting to render fallback markdown");
+        const { root } = transformer.transform(FALLBACK_MARKDOWN);
+        setTimeout(() => {
+          mmRef.current = Markmap.create(svgRef.current, { autoFit: true }, root);
+        }, 100);
+      } catch (fallbackError) {
+        console.error("Even fallback markdown failed:", fallbackError);
+      }
     }
 
     // Cleanup function to destroy Markmap instance on unmount
     return () => {
       if (mmRef.current) {
+        console.log("Cleaning up Markmap instance");
         mmRef.current.destroy();
         mmRef.current = null;
       }
@@ -258,25 +367,19 @@ const MindMapViewer = ({ markdown }) => {
     }
   };
 
-  // Hiển thị thông tin debug
-  const toggleDebugInfo = () => {
-    console.log("MindMap Debug Info:", {
-      ...debugInfo,
-      markdownSample: markdown ? markdown.substring(0, 200) + "..." : "None",
-      svgElement: svgRef.current,
-      markmapInstance: mmRef.current
-    });
-    
-    // Thông báo đã log debug info
-    alert("Đã log thông tin debug vào console. Nhấn F12 để xem.");
-  };
-
   return (
     <div className="w-full h-full flex flex-col" ref={containerRef}>
       {error && (
         <div className="bg-red-900/30 text-red-400 p-3 mb-3 rounded-md border border-red-700 text-sm">
           <p>{error}</p>
           <p className="mt-1 text-xs">
+            <button 
+              className="text-blue-400 underline" 
+              onClick={toggleDebugInfo}
+            >
+              Xem thông tin debug
+            </button>
+            <span className="mx-2">|</span>
             <button 
               className="text-blue-400 underline" 
               onClick={() => {
@@ -295,7 +398,7 @@ const MindMapViewer = ({ markdown }) => {
       )}
       
       <div className="w-full flex-1 border border-gray-700 rounded-lg overflow-hidden bg-gray-800/50 relative">
-        {/* Controls - với nhiều nút hơn và tooltip */}
+        {/* Controls */}
         <div className="absolute top-3 right-3 z-10 bg-gray-800/80 rounded-md p-1.5 flex gap-2 backdrop-blur-sm">
           <button 
             className="bg-purple-600/70 hover:bg-purple-600 text-white p-1.5 rounded flex items-center justify-center" 
@@ -334,17 +437,19 @@ const MindMapViewer = ({ markdown }) => {
           </button>
         </div>
         
-        {/* SVG container for Markmap - thêm className để đảm bảo hiển thị */}
-        <svg 
-          ref={svgRef} 
-          className="w-full h-full markmap-svg" 
-          width="100%" 
-          height="100%" 
-          viewBox="0 0 800 600"
-        />
+        {/* MODIFIED: Điều chỉnh container SVG để đảm bảo hiển thị đúng với nền tối */}
+        <div className="w-full h-full">
+          <svg 
+            ref={svgRef} 
+            className="w-full h-full markmap-svg" 
+            style={{ minHeight: '400px', display: 'block', background: 'transparent' }}
+            width="100%" 
+            height="100%" 
+          />
+        </div>
         
-        {/* Help text - cải thiện với thêm thông tin */}
-        <div className="absolute bottom-2 left-2 text-xs text-gray-400 bg-gray-800/80 p-1.5 rounded backdrop-blur-sm max-w-xs">
+        {/* Help text */}
+        <div className="absolute bottom-2 left-2 text-xs text-gray-300 bg-gray-800/80 p-1.5 rounded backdrop-blur-sm max-w-xs">
           <p className="mb-1"><strong>Điều khiển:</strong> Kéo để di chuyển | Scroll để phóng to/thu nhỏ</p>
           <p>Click vào nút <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mx-1"></span> để mở rộng/thu gọn nhánh</p>
         </div>

@@ -8,7 +8,8 @@ from pymongo.errors import ConnectionFailure, OperationFailure
 from config.settings import MONGODB_HOST, MONGODB_PORT, MONGODB_DB_NAME, MONGODB_COLLECTION
 from config.settings import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security.utils import get_authorization_scheme_param
 
 # Cấu hình mã hóa và JWT
 SECRET_KEY = JWT_SECRET_KEY
@@ -24,7 +25,7 @@ db = None
 users_collection = None
 
 # OAuth2 scheme cho xác thực
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 def get_mongo_connection():
     """Tạo và trả về kết nối MongoDB"""
@@ -89,6 +90,44 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
     return encoded_jwt
+
+async def get_current_user_optional(token: Optional[str] = Depends(oauth2_scheme)):
+    """
+    Xác thực người dùng hiện tại từ token, nhưng không yêu cầu bắt buộc có token.
+    Trả về thông tin người dùng nếu token hợp lệ, ngược lại trả về None.
+    """
+    if not token:
+        return None
+        
+    # Xác thực token
+    token_data = verify_token(token)
+    if token_data is None:
+        return None
+    
+    # Lấy thông tin người dùng từ database
+    try:
+        collection = get_mongo_connection()
+        username = token_data.get("username")
+        
+        # Kiểm tra username có giá trị không
+        if not username:
+            return None
+            
+        user = collection.find_one({"_id": username})
+        
+        if not user:
+            return None
+            
+        # Loại bỏ hashed_password từ thông tin trả về
+        if "hashed_password" in user:
+            user_dict = dict(user)
+            user_dict.pop("hashed_password")
+            return user_dict
+            
+        return dict(user)
+    except Exception as e:
+        print(f"Error in get_current_user_optional: {e}")
+        return None
 
 def verify_token(token: str) -> Optional[Dict[str, Any]]:
     """Xác thực và giải mã JWT token"""

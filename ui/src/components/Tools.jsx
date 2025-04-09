@@ -54,6 +54,18 @@ const Tools = () => {
       {})
       .then(response => {
         console.log("Tools.jsx: handleToolAction response:", response);
+        console.log("Tools.jsx: response type:", typeof response);
+        
+        // Debug log để kiểm tra cấu trúc response
+        if (typeof response === 'object') {
+          console.log("Response keys:", Object.keys(response));
+          
+          if (response.response) {
+            console.log("Response.response type:", typeof response.response);
+            console.log("Response.response value:", response.response);
+          }
+        }
+        
         // Cập nhật state result sau khi nhận được phản hồi từ API
         if (response) {
           setResult(response);

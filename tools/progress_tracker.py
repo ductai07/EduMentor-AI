@@ -4,22 +4,22 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 from .base_tool import BaseTool
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+import json
 import os
 import hashlib
-import json
-from utils.user_data_manager import UserDataManager  # Import UserDataManager
+from utils.user_data_manager import UserDataManager
 
 if TYPE_CHECKING:
     from core.learning_assistant_v2 import LearningAssistant
 
 logger = logging.getLogger(__name__)
 
-# MongoDB Configuration (Consistent with StudyPlanCreatorTool)
+# MongoDB Configuration
 MONGO_HOST = "localhost"
 MONGO_PORT = 27017
 MONGO_DB_NAME = "edumentor"
-MONGO_COLLECTION_NAME = "stats" # Collection mới đã tạo
-DEFAULT_USER_ID = "anonymous_user" # Sử dụng ID mặc định
+MONGO_COLLECTION_NAME = "stats"
+DEFAULT_USER_ID = "anonymous_user"
 
 class ProgressTrackerTool(BaseTool):
     def __init__(self):
@@ -60,8 +60,11 @@ class ProgressTrackerTool(BaseTool):
         """Progress tracker doesn't need document context."""
         return False
 
-    async def execute(self, assistant: 'LearningAssistant', **kwargs) -> Union[str, Dict[str, Any]]:
-        input_data = kwargs.get("question", "")
+    async def execute(self, assistant: 'LearningAssistant', **kwargs) -> Dict:
+        """
+        Xử lý yêu cầu và trả về kết quả dưới dạng từ điển (không phải JSON string)
+        """
+        input_str = kwargs.get("question", "").strip()
         options = kwargs.get("options", {})
         
         # Lấy username từ options 
@@ -80,106 +83,61 @@ class ProgressTrackerTool(BaseTool):
         if not save_to_db:
             # Thêm cảnh báo nếu không thể kết nối CSDL
             logger.warning("Database not available, operation will not persist data")
-            return "Lỗi: Không thể kết nối đến cơ sở dữ liệu."
-
-        # Kiểm tra nếu input là JSON object hoặc dict
+            return {"error": "Lỗi: Không thể kết nối đến cơ sở dữ liệu."}
+            
+        # Kiểm tra các command đặc biệt
         try:
-            input_json = None
-            input_str = ""
-            
-            # Xác định kiểu dữ liệu của input
-            if isinstance(input_data, dict):
-                logger.info("Input is already a dictionary")
-                input_json = input_data
-            elif isinstance(input_data, str):
-                input_str = input_data.strip()
-                # Thử parse nếu là JSON format từ UI
-                if input_str.startswith('{') and input_str.endswith('}'):
-                    try:
-                        input_json = json.loads(input_str)
-                        logger.info("Successfully parsed JSON string input")
-                    except json.JSONDecodeError:
-                        logger.info("Input is not a valid JSON string, treating as plain text")
-
-            # Nếu là JSON object với subject và progress
-            if input_json and isinstance(input_json, dict):
-                logger.info(f"Processing JSON input: {input_json}")
-                if 'subject' in input_json and 'progress' in input_json:
-                    subject = input_json['subject']
-                    progress_value = input_json['progress']
-                    
-                    if not subject:
-                        return "Lỗi: Tên môn học không được để trống khi cập nhật tiến độ."
-                    
-                    # Validate progress
-                    if not isinstance(progress_value, (int, float)):
-                        try:
-                            progress_value = int(progress_value)
-                        except (ValueError, TypeError):
-                            return "Lỗi: Tiến độ phải là một số từ 0 đến 100."
-                    
-                    progress_value = int(progress_value)
-                    if not (0 <= progress_value <= 100):
-                        return "Lỗi: Tiến độ phải là một số từ 0 đến 100."
-                    
-                    # Update progress using UserDataManager
-                    logger.info(f"Updating progress for '{subject}' to {progress_value}% for user '{username}'")
-                    success = self.user_data_manager.update_progress(username, subject, progress_value)
-                    if success:
-                        return {"success": True, "message": f"Đã cập nhật tiến độ cho '{subject}' thành {progress_value}%."}
-                    else:
-                        return {"success": False, "message": f"Không thể cập nhật tiến độ cho '{subject}'."}
-                return {"success": False, "message": "Format không hợp lệ. Cần có 'subject' và 'progress'."}
-        except Exception as e:
-            logger.error(f"Error processing input data: {e}")
-            # Tiếp tục xử lý như input thông thường
-            
-        # Xử lý như văn bản thông thường nếu không phải JSON
-        if isinstance(input_data, str):
-            input_str = input_data.strip()
-            # Xử lý các command đặc biệt (định dạng cũ)
             if input_str.startswith("upload:"):
                 # Xử lý thông tin tài liệu upload
                 _, params = input_str.split(":", 1)
-                return self._process_document_upload(username, params.strip())
+                result = self._process_document_upload(username, params.strip())
+                return {"message": result}
+                
             elif input_str.startswith("documents:"):
                 # Liệt kê tài liệu của một môn học hoặc tất cả các môn
                 _, subject = input_str.split(":", 1)
-                return self._list_documents(username, subject.strip())
+                result = self._list_documents_dict(username, subject.strip())
+                return result  # Already a dictionary
+                
             elif ":" in input_str and not any(input_str.startswith(cmd) for cmd in ["upload:", "documents:"]):
-                # Cập nhật tiến độ (định dạng cũ)
+                # Cập nhật tiến độ
+                subject, progress_str = input_str.split(":", 1)
+                subject = subject.strip()
+                progress_str = progress_str.strip()
+                
+                if not subject:
+                    return {"error": "Lỗi: Tên môn học không được để trống khi cập nhật tiến độ."}
+                
+                # Validate progress value
                 try:
-                    subject, progress_str = input_str.split(":", 1)
-                    subject = subject.strip()
-                    progress_str = progress_str.strip()
-                    if not subject:
-                        return "Lỗi: Tên môn học không được để trống khi cập nhật tiến độ."
-                    # Validate progress value
-                    try:
-                        progress_value = int(progress_str)
-                        if not (0 <= progress_value <= 100):
-                            return "Lỗi: Tiến độ phải là một số từ 0 đến 100."
-                    except ValueError:
-                        return "Lỗi: Tiến độ cung cấp không phải là một số hợp lệ."
-                        
-                    # Update progress in MongoDB using UserDataManager
-                    success = self.user_data_manager.update_progress(username, subject, progress_value)
-                    if success:
-                        return {"success": True, "message": f"Đã cập nhật tiến độ cho '{subject}' thành {progress_value}%."}
-                    else:
-                        return {"success": False, "message": f"Không thể cập nhật tiến độ cho '{subject}'."}
+                    progress_value = int(progress_str)
+                    if not (0 <= progress_value <= 100):
+                        return {"error": "Lỗi: Tiến độ phải là một số từ 0 đến 100."}
                 except ValueError:
-                    return {"success": False, "message": "Lỗi: Định dạng cập nhật tiến độ không hợp lệ. Sử dụng 'Môn học: <tiến độ%>'."}
+                    return {"error": "Lỗi: Tiến độ cung cấp không phải là một số hợp lệ."}
+                    
+                # Update progress in MongoDB using UserDataManager
+                success = self.user_data_manager.update_progress(username, subject, progress_value)
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Đã cập nhật tiến độ cho '{subject}' thành {progress_value}%."
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Không thể cập nhật tiến độ cho '{subject}'."
+                    }
             else:
                 # Retrieve progress from MongoDB
-                subject_to_get = input_str # If empty, gets all; otherwise, gets specific subject
+                subject_to_get = input_str  # If empty, gets all; otherwise, gets specific subject
                 result = self._get_progress_from_db(username, subject_to_get)
-                if isinstance(result, str):
-                    return {"success": True, "response": result}
+                # Result is dictionary
                 return result
-        else:
-            # Input không phải string và không phải JSON hợp lệ
-            return {"success": False, "message": "Định dạng đầu vào không hợp lệ. Vui lòng sử dụng văn bản hoặc JSON."}
+                
+        except Exception as e:
+            logger.exception(f"ProgressTrackerTool execution error: {e}")
+            return {"error": f"Lỗi khi xử lý yêu cầu: {str(e)}"}
 
     def _process_document_upload(self, username: str, params: str) -> str:
         """
@@ -215,7 +173,7 @@ class ProgressTrackerTool(BaseTool):
             return f"Lỗi xử lý thông tin tài liệu: {str(e)}"
 
     def _list_documents(self, username: str, subject: str = "") -> str:
-        """Liệt kê các tài liệu đã upload của người dùng."""
+        """Liệt kê các tài liệu đã upload của người dùng dưới dạng text."""
         try:
             # Sử dụng UserDataManager để lấy danh sách tài liệu
             if subject:
@@ -265,81 +223,168 @@ class ProgressTrackerTool(BaseTool):
         except Exception as e:
             logger.exception(f"Error listing documents: {e}")
             return f"Lỗi khi liệt kê tài liệu: {str(e)}"
+            
+    def _list_documents_dict(self, username: str, subject: str = "") -> Dict:
+        """Liệt kê các tài liệu đã upload của người dùng dưới dạng từ điển."""
+        try:
+            # Khởi tạo structure
+            result = {
+                "subjects": [],
+                "documents": [],
+                "message": "",
+                "error": None
+            }
+            
+            # Sử dụng UserDataManager để lấy danh sách tài liệu
+            if subject:
+                # Liệt kê tài liệu của một môn học cụ thể
+                documents = self.user_data_manager.get_documents(username, subject)
+                
+                if not documents:
+                    result["message"] = f"Không có tài liệu nào trong môn học '{subject}'."
+                    return result
+                
+                # Thêm tên môn học
+                result["subjects"].append({"name": subject})
+                
+                # Thêm tài liệu
+                for doc in documents:
+                    upload_date = doc.get("upload_date")
+                    
+                    result["documents"].append({
+                        "id": doc.get("document_id", ""),
+                        "filename": doc.get("filename", "Không có tên"),
+                        "subject": subject,
+                        "upload_date": upload_date.isoformat() if upload_date else None,
+                        "page_count": doc.get("page_count", 0),
+                        "size_bytes": doc.get("size_bytes", 0)
+                    })
+            else:
+                # Liệt kê tài liệu của tất cả các môn học
+                documents = self.user_data_manager.get_documents(username)
+                
+                if not documents:
+                    result["message"] = "Không có tài liệu nào được upload."
+                    return result
+                
+                # Nhóm tài liệu theo môn học và thêm danh sách môn học
+                subjects = set()
+                for doc in documents:
+                    subject_name = doc.get("subject", "Không rõ môn học")
+                    subjects.add(subject_name)
+                    
+                    upload_date = doc.get("upload_date")
+                    
+                    result["documents"].append({
+                        "id": doc.get("document_id", ""),
+                        "filename": doc.get("filename", "Không có tên"),
+                        "subject": subject_name,
+                        "upload_date": upload_date.isoformat() if upload_date else None,
+                        "page_count": doc.get("page_count", 0),
+                        "size_bytes": doc.get("size_bytes", 0)
+                    })
+                
+                # Thêm danh sách môn học
+                for subject_name in sorted(subjects):
+                    result["subjects"].append({"name": subject_name})
+            
+            return result
+                
+        except Exception as e:
+            logger.exception(f"Error listing documents as JSON: {e}")
+            return {"error": f"Lỗi khi liệt kê tài liệu: {str(e)}"}
 
-    def _get_progress_from_db(self, username: str, subject: str = "") -> str:
-        """Truy xuất tiến độ từ cơ sở dữ liệu. Lấy tất cả nếu subject rỗng."""
+    def _get_progress_from_db(self, username: str, subject: str = "") -> Dict:
+        """
+        Truy xuất tiến độ từ cơ sở dữ liệu và trả về dưới dạng từ điển.
+        Lấy tất cả các môn học nếu subject rỗng.
+        """
+        # Initialize output_data structure
+        output_data = {
+            "subjects": [],
+            "activities": [],
+            "message": "",
+            "error": None
+        }
+        
         try:
             if subject:
                 # Lấy thông tin về một môn học cụ thể
                 stats = self.user_data_manager.get_user_stats(username, subject)
-                if subject not in stats or not stats[subject]:
-                    return f"Không tìm thấy dữ liệu tiến độ cho môn học '{subject}'."
-                
+                if not stats or subject not in stats or not stats[subject]:
+                    output_data["message"] = f"Không tìm thấy dữ liệu tiến độ cho môn học '{subject}'."
+                    return output_data
+
                 subject_data = stats[subject]
-                progress = subject_data.get("progress", "Chưa có")
+                progress = subject_data.get("progress", 0)
                 updated_at_utc = subject_data.get("progress_updated_at")
-                updated_at_str = updated_at_utc.strftime('%Y-%m-%d %H:%M:%S UTC') if updated_at_utc else "Chưa cập nhật"
                 plan_created_at_utc = subject_data.get("plan_created_at")
-                plan_created_at_str = plan_created_at_utc.strftime('%Y-%m-%d %H:%M:%S UTC') if plan_created_at_utc else "Chưa có"
-                
-                # Thêm thông tin số lượng tài liệu
                 documents = subject_data.get("documents", [])
                 doc_count = len(documents)
-                doc_info = f"Số tài liệu: {doc_count}" if doc_count > 0 else "Chưa có tài liệu"
 
-                return (f"Tiến độ cho '{subject}': {progress}%\n"
-                        f"  Cập nhật lần cuối: {updated_at_str}\n"
-                        f"  {doc_info}\n"
-                        f"  Kế hoạch tạo lúc: {plan_created_at_str}")
+                output_data["subjects"].append({
+                    "name": subject,
+                    "progress": progress,
+                    "updated_at": updated_at_utc.isoformat() if updated_at_utc else None,
+                    "plan_created_at": plan_created_at_utc.isoformat() if plan_created_at_utc else None,
+                    "doc_count": doc_count
+                })
             else:
                 # Lấy thông tin về tất cả các môn học
                 stats = self.user_data_manager.get_user_stats(username)
-                
                 if not stats:
-                     return f"Chưa có dữ liệu tiến độ nào được ghi nhận. Vui lòng cập nhật tiến độ cho một môn học."
-                     
-                result_lines = [f"Tiến độ học tập:"]
+                    output_data["message"] = f"Chưa có dữ liệu tiến độ nào được ghi nhận cho người dùng '{username}'."
+                    return output_data
+
                 for subj, data in sorted(stats.items()):
-                    prog = data.get("progress", "N/A")
+                    prog = data.get("progress", 0)
                     updated_at_utc = data.get("progress_updated_at")
-                    updated_at_str = updated_at_utc.strftime('%Y-%m-%d') if updated_at_utc else "N/A"
+                    plan_created_at_utc = data.get("plan_created_at")
                     doc_count = len(data.get("documents", []))
-                    doc_info = f", {doc_count} tài liệu" if doc_count > 0 else ""
-                    result_lines.append(f"- {subj}: {prog}% (Cập nhật: {updated_at_str}{doc_info})")
-                
+
+                    output_data["subjects"].append({
+                        "name": subj,
+                        "progress": prog,
+                        "updated_at": updated_at_utc.isoformat() if updated_at_utc else None,
+                        "plan_created_at": plan_created_at_utc.isoformat() if plan_created_at_utc else None,
+                        "doc_count": doc_count
+                    })
+
                 # Thêm thông tin hoạt động gần đây
                 recent_activities = self.user_data_manager.get_recent_activities(username, limit=5)
-                if recent_activities:
-                    result_lines.append("\nHoạt động gần đây:")
-                    for i, activity in enumerate(recent_activities, 1):
-                        action = activity.get("action", "")
-                        timestamp = activity.get("timestamp")
-                        timestamp_str = timestamp.strftime('%Y-%m-%d') if timestamp else "N/A"
-                        subject = activity.get("subject", "")
-                        document = activity.get("document", "")
-                        
-                        if action == "upload":
-                            act_str = f"Upload tài liệu '{document}' vào môn {subject}"
-                        elif action == "update_progress":
-                            progress = activity.get("progress", "")
-                            act_str = f"Cập nhật tiến độ môn {subject}: {progress}%"
-                        elif action == "learn":
-                            duration = activity.get("duration_minutes", "")
-                            act_str = f"Học môn {subject} ({duration} phút)"
-                        elif action == "create_plan":
-                            act_str = f"Tạo kế hoạch học tập cho môn {subject}"
-                        else:
-                            act_str = f"Hoạt động: {action}"
-                            
-                        result_lines.append(f"{i}. {timestamp_str}: {act_str}")
-                
-                return "\n".join(result_lines)
+                for activity in recent_activities:
+                    # Format activity for frontend
+                    action = activity.get("action", "")
+                    timestamp = activity.get("timestamp")
+                    timestamp_str = timestamp.isoformat() if timestamp else None
+                    subject_act = activity.get("subject", "")
+                    document_act = activity.get("document", "")
+                    progress_act = activity.get("progress", "")
+                    duration_act = activity.get("duration_minutes", "")
+
+                    activity_text = f"Hoạt động: {action}"  # Default
+                    if action == "upload":
+                        activity_text = f"Upload tài liệu '{document_act}' vào môn {subject_act}"
+                    elif action == "update_progress":
+                        activity_text = f"Cập nhật tiến độ môn {subject_act}: {progress_act}%"
+                    elif action == "learn":
+                        activity_text = f"Học môn {subject_act} ({duration_act} phút)"
+                    elif action == "create_plan":
+                        activity_text = f"Tạo kế hoạch học tập cho môn {subject_act}"
+
+                    output_data["activities"].append({
+                        "timestamp": timestamp_str,
+                        "description": activity_text
+                    })
+
+            return output_data
 
         except Exception as e:
             logger.exception(f"Error getting progress from database: {e}")
-            return f"Lỗi: Đã xảy ra lỗi không mong muốn khi truy xuất tiến độ: {str(e)}"
+            output_data["error"] = f"Lỗi khi truy xuất tiến độ: {str(e)}"
+            return output_data
 
-    def record_learning_activity(self, username: str, subject: str, document_id: Optional[str] = None, 
+    def record_learning_activity(self, username: str, subject: str, document_id: Optional[str] = None,
                                duration_minutes: int = 0, topics: List[str] = None) -> bool:
         """
         Ghi lại hoạt động học tập của người dùng

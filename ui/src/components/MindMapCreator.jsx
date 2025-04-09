@@ -47,30 +47,49 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
         // Process result based on type
         if (typeof result === 'string') {
           // Direct markdown string
+          console.log('Result is a string, setting as markdown directly');
           setMindMapMarkdown(result);
           setLocalError(null);
         } else if (typeof result === 'object') {
+          // Log để debug object structure
+          console.log('Result is an object with keys:', Object.keys(result));
+          
           if (result.error) {
+            console.error('Error from backend:', result.error);
             setLocalError(result.error);
             setMindMapMarkdown(null);
           } else if (result.markdown) {
             // Extract markdown from object structure
+            console.log('Found markdown key in result:', result.markdown.substring(0, 50) + '...');
             setMindMapMarkdown(result.markdown);
             setLocalError(null);
           } else if (result.response && typeof result.response === 'string') {
             // Handle legacy response format
+            console.log('Found string response:', result.response.substring(0, 50) + '...');
             setMindMapMarkdown(result.response);
             setLocalError(null);
           } else if (result.response && result.response.markdown) {
             // Handle nested response structure
+            console.log('Found markdown in nested response:', result.response.markdown.substring(0, 50) + '...');
             setMindMapMarkdown(result.response.markdown);
             setLocalError(null);
           } else {
-            // Unknown format - try to stringify it for debugging
-            setLocalError("Định dạng không hợp lệ từ backend");
-            console.error("Invalid mind map format:", result);
+            // ADDED: Kiểm tra cấu trúc dữ liệu khác có thể chứa markdown
+            const nestedData = result.data || result.content || result.result || {};
+            if (nestedData.markdown || typeof nestedData === 'string') {
+              const mdContent = nestedData.markdown || nestedData;
+              console.log('Found markdown in data/content/result:', mdContent.substring(0, 50) + '...');
+              setMindMapMarkdown(mdContent);
+              setLocalError(null);
+            } else {
+              // Unknown format - try to stringify it for debugging
+              console.error('Invalid mind map format:', result);
+              console.log('Full result:', JSON.stringify(result, null, 2));
+              setLocalError("Định dạng không hợp lệ từ backend");
+            }
           }
         } else {
+          console.log('Result is neither string nor object, converting to string');
           setMindMapMarkdown(String(result));
           setLocalError(null);
         }
@@ -78,6 +97,8 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
         console.error("Error processing mind map result:", err);
         setLocalError("Lỗi xử lý kết quả: " + err.message);
       }
+    } else {
+      console.log('No result received (result is null/undefined)');
     }
   }, [result]);
 
@@ -92,6 +113,7 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
     setLocalError(null);
     
     // Submit request
+    console.log('Submitting mind map request for topic:', topic);
     onSubmit(topic);
   };
 
@@ -134,7 +156,7 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
               )}
             </button>
           </div>
-          {!token && <p className="text-xs text-yellow-400 mt-2">Bạn cần đăng nhập để sử dụng tính năng này.</p>}
+          {!token && <p className="text-xs text-primary-50 mt-2">Bạn cần đăng nhập để sử dụng tính năng này.</p>}
         </form>
 
         {displayError && !loading && (
@@ -170,7 +192,8 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
 
         {mindMapMarkdown ? (
           <div className="h-full w-full">
-            <MindMapViewer markdown={mindMapMarkdown} />
+            {/* ADDED: Key prop để đảm bảo component được re-render khi markdown thay đổi */}
+            <MindMapViewer markdown={mindMapMarkdown} key={mindMapMarkdown.substring(0, 20)} />
           </div>
         ) : !displayError ? (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -181,6 +204,18 @@ const MindMapCreator = ({ onSubmit, result, loading, error }) => {
           </div>
         ) : null /* Don't show initial message if there's an error */ }
       </div>
+      
+      {/* ADDED: Debugging section để hiển thị thông tin về markdown */}
+      {mindMapMarkdown && (
+        <div className="mt-3 text-xs bg-gray-900 p-3 rounded border border-gray-700 hidden">
+          <details>
+            <summary>Debug Data (click to show/hide)</summary>
+            <pre className="mt-2 whitespace-pre-wrap overflow-auto max-h-40 text-gray-400">
+              {mindMapMarkdown.substring(0, 300) + "..."}
+            </pre>
+          </details>
+        </div>
+      )}
     </div>
   );
 };

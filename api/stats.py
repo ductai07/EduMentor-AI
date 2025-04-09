@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from typing import Dict, List, Optional, Any
 from utils.user_data_manager import UserDataManager
-from auth.utils import get_current_user
+from auth.utils import get_current_user_optional
 import logging
 
 router = APIRouter(
@@ -15,13 +15,23 @@ logger = logging.getLogger(__name__)
 @router.get("/", summary="Lấy tổng quan thống kê người dùng")
 async def get_user_stats(
     username: Optional[str] = Query(None, description="Username cụ thể. Nếu không cung cấp, sẽ lấy từ token xác thực."),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ):
     """
     Truy xuất tất cả dữ liệu thống kê của người dùng.
     """
-    # Sử dụng current_user từ token hoặc username cung cấp
-    user_id = username or current_user.get("username", "anonymous_user")
+    # Sử dụng username từ query param hoặc từ token nếu có
+    user_id = username
+    if not user_id and current_user:
+        user_id = current_user.get("username")
+    
+    # Nếu không có username, trả về lỗi
+    if not user_id:
+        return {
+            "success": False,
+            "message": "Bạn cần cung cấp username hoặc đăng nhập để xem thống kê.",
+            "data": {}
+        }
     
     try:
         user_data_manager = UserDataManager()
@@ -69,12 +79,23 @@ async def get_user_stats(
 async def get_subject_stats(
     subject: str = Path(..., description="Tên môn học cần truy xuất"),
     username: Optional[str] = Query(None, description="Username cụ thể. Nếu không cung cấp, sẽ lấy từ token xác thực."),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ):
     """
     Truy xuất thông tin chi tiết về một môn học cụ thể.
     """
-    user_id = username or current_user.get("username", "anonymous_user")
+    # Sử dụng username từ query param hoặc từ token nếu có
+    user_id = username
+    if not user_id and current_user:
+        user_id = current_user.get("username")
+    
+    # Nếu không có username, trả về lỗi
+    if not user_id:
+        return {
+            "success": False,
+            "message": "Bạn cần cung cấp username hoặc đăng nhập để xem thống kê.",
+            "data": {}
+        }
     
     try:
         user_data_manager = UserDataManager()
@@ -119,12 +140,23 @@ async def get_subject_stats(
 @router.get("/documents", summary="Lấy danh sách tất cả tài liệu của người dùng")
 async def get_user_documents(
     username: Optional[str] = Query(None, description="Username cụ thể. Nếu không cung cấp, sẽ lấy từ token xác thực."),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ):
     """
     Truy xuất danh sách tất cả tài liệu của người dùng.
     """
-    user_id = username or current_user.get("username", "anonymous_user")
+    # Sử dụng username từ query param hoặc từ token nếu có
+    user_id = username
+    if not user_id and current_user:
+        user_id = current_user.get("username")
+    
+    # Nếu không có username, trả về lỗi
+    if not user_id:
+        return {
+            "success": False,
+            "message": "Bạn cần cung cấp username hoặc đăng nhập để xem danh sách tài liệu.",
+            "data": {}
+        }
     
     try:
         user_data_manager = UserDataManager()
@@ -160,12 +192,23 @@ async def get_user_documents(
 async def get_user_activities(
     limit: int = Query(10, description="Số lượng hoạt động tối đa cần lấy"),
     username: Optional[str] = Query(None, description="Username cụ thể. Nếu không cung cấp, sẽ lấy từ token xác thực."),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ):
     """
     Truy xuất lịch sử hoạt động của người dùng.
     """
-    user_id = username or current_user.get("username", "anonymous_user")
+    # Sử dụng username từ query param hoặc từ token nếu có
+    user_id = username
+    if not user_id and current_user:
+        user_id = current_user.get("username")
+    
+    # Nếu không có username, trả về lỗi
+    if not user_id:
+        return {
+            "success": False,
+            "message": "Bạn cần cung cấp username hoặc đăng nhập để xem lịch sử hoạt động.",
+            "data": {}
+        }
     
     try:
         user_data_manager = UserDataManager()

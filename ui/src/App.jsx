@@ -1,18 +1,18 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Routes, Route, Navigate, Link, Outlet } from "react-router-dom"; // Import Outlet
 import Sidebar from "./components/Sidebar";
 import ChatInterface from "./components/ChatInterface";
-import StatsDashboard from "./components/StatsDashboard";
 import Tools from "./components/Tools";
-import NavBar from "./components/NavBar";
+import NavBar from "./components/Navbar";
 import FileUploader from "./components/FileUploader";
 import Login from "./components/Login"; // Import Login
 import Register from "./components/Register"; // Import Register
 import ProtectedRoute from "./components/ProtectedRoute"; // Import ProtectedRoute
+import UserStats from "./components/UserStats"; // Import UserStats component
 import { TypeAnimation } from "react-type-animation";
-import edubotLogo from "./assets/edubot-logo.svg";
+import edubotLogo from "./assets/duu.png";
 import { useAuth } from "./contexts/AuthContext"; // Import useAuth to check auth status
-
+import './styles/markdown.css';
 // --- HomePage Component (Moved inside App or keep separate, ensure imports are correct) ---
 const HomePage = () => {
   const [showUploader, setShowUploader] = useState(false);
@@ -99,16 +99,37 @@ const HomePage = () => {
 
 // --- Main Layout for Authenticated Users ---
 const MainLayout = () => {
+  // Thêm state để quản lý trò chuyện được chọn
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [quickQuestion, setQuickQuestion] = useState("");
+
+  // Hàm xử lý khi người dùng chọn một cuộc trò chuyện từ sidebar
+  const handleSelectConversation = useCallback((conversation) => {
+    setSelectedConversation(conversation);
+  }, []);
+
+  // Hàm xử lý khi người dùng chọn một câu hỏi nhanh từ sidebar
+  const handleQuickQuestion = useCallback((question) => {
+    setQuickQuestion(question);
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
       <NavBar />
       <div className="flex flex-1 overflow-hidden">
         <div className="hidden md:block w-64 flex-shrink-0 bg-gray-900">
-          <Sidebar />
+          <Sidebar 
+            handleQuickQuestion={handleQuickQuestion} 
+            onSelectConversation={handleSelectConversation} 
+          />
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto"> {/* Allow content to scroll */}
-            <Outlet /> {/* Nested routes render here */}
+            <Outlet context={{ 
+              selectedConversation, 
+              quickQuestion,
+              resetQuickQuestion: () => setQuickQuestion("") 
+            }} /> {/* Nested routes render here with context */}
           </main>
           <footer className="bg-gray-800 bg-opacity-50 text-center text-gray-400 text-xs py-1 border-t border-gray-700 flex-shrink-0">
             <div className="flex items-center justify-center">
@@ -147,7 +168,7 @@ function App() {
         {/* Routes rendered inside MainLayout's Outlet */}
         <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatInterface commonQuestions={commonQuestions} />} />
-        <Route path="/stats" element={<StatsDashboard />} />
+        <Route path="/stats" element={<UserStats />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/tools/:toolId" element={<Tools />} />
         {/* Add other protected routes here (e.g., /profile) */}

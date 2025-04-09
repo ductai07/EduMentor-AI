@@ -295,7 +295,7 @@ async def ask_question(request: AskRequest, current_user: Optional[dict] = Depen
         
         logger.info(f"Processing question for user '{username or 'anonymous'}': {request.question[:100]}...")
         # Pass username to the answer method
-        result = await asyncio.wait_for(assistant.answer(request.question, username=username), timeout=60.0) 
+        result = await asyncio.wait_for(assistant.answer(request.question, username=username), timeout=120.0) 
 
         if not result or "response" not in result:
             logger.error(f"Invalid response from workflow: {result}")
@@ -376,11 +376,20 @@ async def use_specific_tool(
         
         logger.info(f"Executing tool: {actual_tool_name} with input: {request.input[:50]}...")
         result = await assistant.tool_registry.execute_tool(actual_tool_name, **tool_kwargs)
-
-        return ApiResponse(
-            response=result,
-            metadata={"tool_executed": actual_tool_name, "input_provided": request.input[:100]}
-        )
+        
+        # Xử lý đặc biệt cho Progress_Tracker
+        if actual_tool_name == "Progress_Tracker":
+            # Trả về dữ liệu trực tiếp không cần chuyển đổi nữa vì tool đã trả về dict
+            return ApiResponse(
+                response=result,
+                metadata={"tool_executed": actual_tool_name, "input_provided": request.input[:100]}
+            )
+        else:
+            # Các công cụ khác vẫn xử lý như bình thường
+            return ApiResponse(
+                response=result,
+                metadata={"tool_executed": actual_tool_name, "input_provided": request.input[:100]}
+            )
     except Exception as e:
         logger.error(f"Error executing tool {actual_tool_name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Lỗi khi chạy công cụ '{actual_tool_name}': {str(e)}")

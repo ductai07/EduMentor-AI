@@ -30,7 +30,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 # --- LLM Configuration ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME")
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.2))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.05))
 
 # --- Web Search Configuration ---
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
@@ -49,13 +49,13 @@ LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO").upper()
 
 # --- Retriever Configuration ---
 RETRIEVER_TOP_K = int(os.getenv("RETRIEVER_TOP_K", 5))
-VECTOR_WEIGHT = float(os.getenv("VECTOR_WEIGHT", 0.6))
-BM25_WEIGHT = float(os.getenv("BM25_WEIGHT", 0.4))
+VECTOR_WEIGHT = float(os.getenv("VECTOR_WEIGHT", 0.7))
+BM25_WEIGHT = float(os.getenv("BM25_WEIGHT", 0.3))
 
 # --- API Configuration ---
 API_PORT = int(os.getenv("API_PORT", 5000))
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_RELOAD = os.getenv("API_RELOAD", "true").lower() == "true"
-API_TIMEOUT = int(os.getenv("API_TIMEOUT", 60)) # Timeout cho request /ask
+API_TIMEOUT = int(os.getenv("API_TIMEOUT", 120)) # Timeout cho request /ask
 
 # --- Simple Check ---

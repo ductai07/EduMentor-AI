@@ -55,6 +55,24 @@ export const getChatHistory = async (username, token) => {
    return response.data; // Expects { username: ..., history: [...] }
 };
 
+// Rename Conversation
+export const renameConversation = async (conversationId, newTitle, token) => {
+  // Note: The backend endpoint needs to be implemented. Assuming PUT /conversations/{id}
+  const response = await api.put(`/conversations/${conversationId}`, { title: newTitle }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data; // Expects updated conversation or success message
+};
+
+// Delete Conversation
+export const deleteConversation = async (conversationId, token) => {
+  // Note: The backend endpoint needs to be implemented. Assuming DELETE /conversations/{id}
+  const response = await api.delete(`/conversations/${conversationId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data; // Expects success message or confirmation
+};
+
 // Tools (Generic and Specific)
 export const callTool = async (toolName, input, options = {}, token) => {
     // Add username to options automatically if available and needed by tool
@@ -172,26 +190,40 @@ export const handleToolAction = async (toolId, input, setLoading, setError, setR
       } else {
         console.warn(`Không thể lấy username từ token cho công cụ ${toolId}`);
       }
-      
-      // Sử dụng hàm callTool từ API service với input đã xử lý
-      // callTool sẽ tự động ánh xạ toolId sang endpoint API tương ứng
+
       const response = await callTool(toolId, processedInput, toolOptions, token);
       
       // Debug: Hiển thị dữ liệu trả về từ API
       console.log('Dữ liệu API gốc:', response);
       
-      // Xử lý kết quả từ API một cách nhất quán
+      // Xử lý kết quả từ API
       if (response) {
+        // Trường hợp đặc biệt cho progress_tracker - để đảm bảo dữ liệu phù hợp được truyền đến component
+        if (toolId === 'progress_tracker') {
+          console.log('Nhận được dữ liệu Progress:', response);
+          setResult(response);
+          return response;
+        }
+        
+        // Kiểm tra xem response có phải là đối tượng có trường response không
         if (response.response !== undefined) {
           console.log('Kết quả từ API response field:', response.response);
-          // Đảm bảo chỉ truyền phần response từ API để tất cả các component con xử lý nhất quán
+          
+          // ĐẶC BIỆT CHO MINDMAP: nếu là mind_map_creator và response.response có trường markdown
+          if (toolId === 'mind_map_creator' && typeof response.response === 'object' && response.response.markdown) {
+            console.log('Nhận được dữ liệu MindMap với markdown:', response.response);
+            setResult(response.response); // Giữ nguyên cấu trúc đối tượng
+            return response.response;
+          }
+          
+          // Trường hợp chung cho các công cụ khác
           setResult(response.response);
-          return response.response; // Trả về giá trị để có thể theo dõi trong Promise chain
+          return response.response;
         } else {
           // Trong trường hợp API không trả về trường response thông thường
           console.log('API trả về dữ liệu không có trường response, sử dụng toàn bộ phản hồi');
-          setResult(response); // Đặt toàn bộ phản hồi làm kết quả
-          return response; // Trả về giá trị để có thể theo dõi trong Promise chain
+          setResult(response);
+          return response;
         }
       } else {
         console.error('Kết quả API không đúng định dạng hoặc rỗng:', response);

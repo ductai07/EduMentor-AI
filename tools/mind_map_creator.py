@@ -71,13 +71,13 @@ class MindMapCreatorTool(BaseTool):
             response = await assistant.llm.ainvoke(prompt)  # Use async invoke
             markdown_content = response  # Assuming model returns content directly
             logger.info(f"Mind Map Creator: Mind map generated for '{topic}'.")
-
             # Basic check if it looks like markdown
             if not markdown_content.strip().startswith("#"):
                 logger.warning(f"Mind Map Creator: Output for '{topic}' doesn't start with #. May not be valid Markmap Markdown.")
             
             # Clean potential markdown code fences ```markdown ... ```
             cleaned_markdown = re.sub(r'^```markdown\s*|\s*```$', '', markdown_content, flags=re.MULTILINE).strip()
+            print(cleaned_markdown)
             
             # Return an object with necessary information for rendering
             return {

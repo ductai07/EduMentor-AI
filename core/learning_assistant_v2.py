@@ -146,7 +146,7 @@ class LearningAssistant:
                 4. Nếu không cần tài liệu/công cụ, chọn "DIRECT".
                 Ví dụ:
                 - "Tạo quiz từ tài liệu" -> 'action': 'Quiz_Generator', 'confidence': 0.95, 'reasoning': 'Yêu cầu tạo quiz rõ ràng'
-                - "Tìm thông tin trên web" -> 'action': 'Web_Search', 'confidence': 0.9, 'reasoning': 'Yêu cầu tìm kiếm web'
+                - "Tìm thông tin trên web/Mai là thứ mấy" -> 'action': 'Web_Search', 'confidence': 0.9, 'reasoning': 'Yêu cầu tìm kiếm web'
                 - "Giải thích khái niệm trong slide" -> 'action': 'RAG', 'confidence': 0.85, 'reasoning': 'Liên quan đến tài liệu'
                 - "Xin chào" -> 'action': 'DIRECT', 'confidence': 0.99, 'reasoning': 'Lời chào đơn giản'
                 Output có dạng: 
@@ -215,7 +215,7 @@ class LearningAssistant:
             "{text}"
 
             Identify:
-            1. Primary emotion (e.g., happy, sad, angry, confused, curious, frustrated, excited)
+            1. Cảm xúc chính (ví dụ: vui, buồn, tức giận, bối rối, tò mò, thất vọng, phấn khích)
             2. Emotional intensity (scale 1-10)
             3. Key emotional triggers or concerns
             4. Suggested tone for response
@@ -266,7 +266,7 @@ class LearningAssistant:
         system_message = f"""Bạn là EduMentor, một trợ lý học tập AI thông minh và thân thiện.
 
         Phân tích cảm xúc người dùng: Họ đang thể hiện cảm xúc "{emotion}" với mức độ {emotion_intensity}/10.
-        Hãy điều chỉnh tông giọng của bạn để "{suggested_tone}" khi phản hồi.Hãy động viên khi người dùng thấy chán nản trong việc học,và hãy khích lệ họ."""
+        Hãy điều chỉnh tông giọng của bạn để "{suggested_tone}" khi phản hồi.Nếu người dùng buồn chán hay chán nản với việc học,hãy tiếp thêm động lực cho người dùng.Khi người dùng vui vẻ,hãy chia vui với người dùng"""
         
         human_template_parts = ["Câu hỏi người dùng: {question}\n"]
         input_dict = {"question": question, "chat_history": chat_history}
