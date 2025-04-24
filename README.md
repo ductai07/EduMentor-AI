@@ -124,13 +124,4 @@ API được thiết kế với 3 endpoint chính:
    - Định tuyến đến công cụ phù hợp
    - Tích hợp RAG cho câu trả lời chính xác
 
-## Cách sử dụng
-
-### Cài đặt và chạy Milvus Database
-1.Khởi động Docker Desktop
-2.Mở Terminal/Command Prompt, chạy lệnh: docker compose up --build
-Option: Cài đặt attu để view data đã seed vào Milvus:
-
-Chạy lệnh: docker run -p 8000:3000 -e MILVUS_URL={milvus server IP}:19530 zilliz/attu:v2.4
-2 Thay "milvus server IP" bằng IP internet local, cách lấy IP local:
-Chạy lệnh: ipconfig ở cái cuối cùng là ip 
+ 
