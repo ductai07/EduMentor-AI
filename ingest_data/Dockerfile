@@ -25,4 +25,12 @@ COPY --chown=airflow:0 tools ./tools
 COPY --chown=airflow:0 utils ./utils
 COPY --chown=airflow:0 ingest_data ./ingest_data
 
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir \
+    pymilvus==3.0.1 \
+    sentence-transformers==5.7.0 \
+    langchain==1.3.14 \
+    mistralai==2.9.1 \
+    python-docx==1.2.0 \
+    docx2txt==0.9 \
+    python-dotenv==1.0.1 \
+    click==8.1.7
