@@ -22,16 +22,17 @@
 ## Phase Order
 
 1. [Phase 00 - Superpowers Plan And Execution Contract](phase-00-superpowers-plan-and-execution-contract.md)
-2. [Phase 01 - Reproducible Baseline And Security](phase-01-reproducible-baseline-and-security.md)
-3. [Phase 02 - Versioned Ingestion And Evidence Contract](phase-02-versioned-ingestion-and-evidence-contract.md)
-4. [Phase 03 - Evaluation First RAG](phase-03-evaluation-first-rag.md)
-5. [Phase 04 - LLM Gateway And Model Routing](phase-04-llm-gateway-and-model-routing.md)
-6. [Phase 05 - Deterministic Guardrails And Citation Verification](phase-05-deterministic-guardrails-and-citation-verification.md)
-7. [Phase 06 - Version Aware Redis Cache](phase-06-version-aware-redis-cache.md)
-8. [Phase 07 - LangGraph Persistence And Reliability](phase-07-langgraph-persistence-and-reliability.md)
-9. [Phase 08 - Observability And LLMOps Dashboard](phase-08-observability-and-llmops-dashboard.md)
-10. [Phase 09 - Deployment And Operations](phase-09-deployment-and-operations.md)
-11. [Phase 10 - Portfolio And Interview Defense](phase-10-portfolio-and-interview-defense.md)
+2. [Phase 00A - Repository Structure Cleanup](phase-00a-repository-structure-cleanup.md)
+3. [Phase 01 - Reproducible Baseline And Security](phase-01-reproducible-baseline-and-security.md)
+4. [Phase 02 - Versioned Ingestion And Evidence Contract](phase-02-versioned-ingestion-and-evidence-contract.md)
+5. [Phase 03 - Evaluation First RAG](phase-03-evaluation-first-rag.md)
+6. [Phase 04 - LLM Gateway And Model Routing](phase-04-llm-gateway-and-model-routing.md)
+7. [Phase 05 - Deterministic Guardrails And Citation Verification](phase-05-deterministic-guardrails-and-citation-verification.md)
+8. [Phase 06 - Version Aware Redis Cache](phase-06-version-aware-redis-cache.md)
+9. [Phase 07 - LangGraph Persistence And Reliability](phase-07-langgraph-persistence-and-reliability.md)
+10. [Phase 08 - Observability And LLMOps Dashboard](phase-08-observability-and-llmops-dashboard.md)
+11. [Phase 09 - Deployment And Operations](phase-09-deployment-and-operations.md)
+12. [Phase 10 - Portfolio And Interview Defense](phase-10-portfolio-and-interview-defense.md)
 
 ## Fast Track
 
