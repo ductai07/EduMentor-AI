@@ -33,3 +33,14 @@ Deploy a production-like VM Docker Compose stack with backups, rollback, and smo
 - HTTPS, probes, backup/restore, and rollback are documented.
 - Load test report includes p50/p95/error/resource usage.
 
+## Progress
+
+- [x] Add API Dockerfile.
+- [x] Add UI Dockerfile.
+- [x] Add API, UI, MongoDB, Redis, Milvus, and LiteLLM Compose services.
+- [x] Add CI workflow for tests and eval smoke.
+- [x] Add deployment guide, runbook, and postmortem template.
+- [x] Validate Compose config.
+- [ ] Run fresh VM deployment.
+- [ ] Add HTTPS reverse proxy.
+- [ ] Complete backup/restore and load-test reports.
