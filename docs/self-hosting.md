@@ -19,6 +19,7 @@ EduMentor can run as a production-like single-VM stack before moving to Kubernet
 
 Choose one model path:
 
+- NVIDIA hosted NIM path: set `NVIDIA_API_KEY`, `NVIDIA_API_BASE_URL=https://integrate.api.nvidia.com/v1`, and `LLM_CHAT_MODEL=openai/gpt-oss-20b`.
 - Cloud path: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `GROQ_API_KEY` configured in LiteLLM.
 - Local path: `LOCAL_OPENAI_BASE_URL` and `LOCAL_OPENAI_API_KEY` pointing to LM Studio, vLLM, Ollama OpenAI-compatible proxy, or another local model server.
 
@@ -51,6 +52,7 @@ python -m evals.run_eval --dataset evals/datasets/edumentor_v1.jsonl --output re
 - Set explicit `CORS_ALLOW_ORIGINS`; do not use `*`.
 - Keep `API_RELOAD=false`.
 - Configure one LiteLLM cloud or local model route.
+- For the default NVIDIA route, keep LiteLLM pointing at `edumentor-fast` and `edumentor-quality`; both resolve to `LLM_CHAT_MODEL`.
 - Configure volume backups for MongoDB, Milvus, MinIO, and Redis.
 - Put UI/API behind HTTPS reverse proxy.
 - Capture Langfuse dashboard evidence after traffic.

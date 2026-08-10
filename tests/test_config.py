@@ -82,3 +82,25 @@ def test_get_settings_reads_litellm_gateway_config():
 
     assert settings.LITELLM_BASE_URL == "http://litellm:4000/v1"
     assert settings.LITELLM_MASTER_KEY == "sk-test"
+
+
+def test_get_settings_reads_nvidia_and_embedding_runtime_config():
+    from config.settings import get_settings
+
+    settings = get_settings(
+        {
+            "NVIDIA_API_KEY": "nvapi-test",
+            "NVIDIA_API_BASE_URL": "https://integrate.api.nvidia.com/v1",
+            "LLM_CHAT_MODEL": "openai/gpt-oss-20b",
+            "EMBEDDING_API_BASE_URL": "http://localhost:8001/v1",
+            "EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2",
+            "EMBEDDING_DIMENSIONS": "384",
+        }
+    )
+
+    assert settings.NVIDIA_API_KEY == "nvapi-test"
+    assert settings.NVIDIA_API_BASE_URL == "https://integrate.api.nvidia.com/v1"
+    assert settings.LLM_CHAT_MODEL == "openai/gpt-oss-20b"
+    assert settings.EMBEDDING_API_BASE_URL == "http://localhost:8001/v1"
+    assert settings.EMBEDDING_MODEL == "sentence-transformers/all-MiniLM-L6-v2"
+    assert settings.EMBEDDING_DIMENSIONS == 384

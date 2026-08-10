@@ -16,7 +16,12 @@ services:
       LITELLM_BASE_URL: http://litellm:4000/v1
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-edumentor-dev}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_API_BASE_URL: ${NVIDIA_API_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-openai/gpt-oss-20b}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      EMBEDDING_API_BASE_URL: ${EMBEDDING_API_BASE_URL:-http://host.docker.internal:8001/v1}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
@@ -84,6 +89,9 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_API_BASE_URL: ${NVIDIA_API_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-openai/gpt-oss-20b}
       LOCAL_OPENAI_BASE_URL: ${LOCAL_OPENAI_BASE_URL:-http://host.docker.internal:8001/v1}
       LOCAL_OPENAI_API_KEY: ${LOCAL_OPENAI_API_KEY:-local-dev-key}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-edumentor-dev}

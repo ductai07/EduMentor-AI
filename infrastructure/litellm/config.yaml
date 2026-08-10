@@ -1,14 +1,16 @@
 model_list:
   - model_name: edumentor-fast
     litellm_params:
-      model: gemini/gemini-1.5-flash
-      api_key: os.environ/GOOGLE_API_KEY
+      model: os.environ/LLM_CHAT_MODEL
+      api_base: os.environ/NVIDIA_API_BASE_URL
+      api_key: os.environ/NVIDIA_API_KEY
       timeout: 30
 
   - model_name: edumentor-quality
     litellm_params:
-      model: gemini/gemini-1.5-pro
-      api_key: os.environ/GOOGLE_API_KEY
+      model: os.environ/LLM_CHAT_MODEL
+      api_base: os.environ/NVIDIA_API_BASE_URL
+      api_key: os.environ/NVIDIA_API_KEY
       timeout: 60
 
   - model_name: edumentor-local

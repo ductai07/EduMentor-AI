@@ -6,7 +6,7 @@ Use this document as the interview-facing proof map for EduMentor AI.
 
 - Built a production-style educational RAG assistant with FastAPI, React, LangGraph, Milvus, MongoDB, Redis, and LiteLLM.
 - Implemented versioned evidence IDs for document, chunk, and index lineage to reduce stale citation risk.
-- Routed LLM calls through an OpenAI-compatible LiteLLM gateway with logical model routes and fallback policy.
+- Routed LLM calls through an OpenAI-compatible LiteLLM gateway with NVIDIA NIM/OpenAI-compatible model routing and fallback policy.
 - Added deterministic guardrails for prompt injection, PII exfiltration, academic-integrity approval, tool allowlists, timeouts, and output-size limits.
 - Built an offline RAG evaluation harness with Recall, MRR, nDCG, and citation-oriented reporting.
 - Added version-aware retrieval caching keyed by course/user scope, index version, embedding model, and retriever configuration.
