@@ -62,6 +62,9 @@ class AppSettings:
     LITELLM_BASE_URL: str = "http://localhost:4000/v1"
     LITELLM_MASTER_KEY: str = "sk-edumentor-dev"
     REDIS_URL: str = "redis://localhost:6379/0"
+    LANGFUSE_HOST: str | None = None
+    LANGFUSE_PUBLIC_KEY: str | None = None
+    LANGFUSE_SECRET_KEY: str | None = None
 
     SERPER_API_KEY: str | None = None
     TAVILY_API_KEY: str | None = None
@@ -115,6 +118,9 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         LITELLM_BASE_URL=source.get("LITELLM_BASE_URL", "http://localhost:4000/v1"),
         LITELLM_MASTER_KEY=source.get("LITELLM_MASTER_KEY", "sk-edumentor-dev"),
         REDIS_URL=source.get("REDIS_URL", "redis://localhost:6379/0"),
+        LANGFUSE_HOST=source.get("LANGFUSE_HOST"),
+        LANGFUSE_PUBLIC_KEY=source.get("LANGFUSE_PUBLIC_KEY"),
+        LANGFUSE_SECRET_KEY=source.get("LANGFUSE_SECRET_KEY"),
         SERPER_API_KEY=source.get("SERPER_API_KEY"),
         TAVILY_API_KEY=source.get("TAVILY_API_KEY"),
         CHUNK_SIZE=_get_int(source, "CHUNK_SIZE", 500),
@@ -174,6 +180,9 @@ LLM_TEMPERATURE = SETTINGS.LLM_TEMPERATURE
 LITELLM_BASE_URL = SETTINGS.LITELLM_BASE_URL
 LITELLM_MASTER_KEY = SETTINGS.LITELLM_MASTER_KEY
 REDIS_URL = SETTINGS.REDIS_URL
+LANGFUSE_HOST = SETTINGS.LANGFUSE_HOST
+LANGFUSE_PUBLIC_KEY = SETTINGS.LANGFUSE_PUBLIC_KEY
+LANGFUSE_SECRET_KEY = SETTINGS.LANGFUSE_SECRET_KEY
 
 SERPER_API_KEY = SETTINGS.SERPER_API_KEY
 TAVILY_API_KEY = SETTINGS.TAVILY_API_KEY

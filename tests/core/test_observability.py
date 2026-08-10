@@ -1,4 +1,6 @@
-from core.observability import TraceContext, redact_sensitive
+import pytest
+
+from core.observability import InMemorySpanRecorder, TraceContext, redact_sensitive
 
 
 def test_trace_context_exports_stable_metadata():
@@ -35,3 +37,27 @@ def test_redact_sensitive_masks_known_secret_fields():
     assert redacted["Authorization"] == "[REDACTED]"
     assert redacted["nested"]["password"] == "[REDACTED]"
     assert redacted["nested"]["safe"] == "ok"
+
+
+def test_span_recorder_captures_success_with_redacted_metadata():
+    recorder = InMemorySpanRecorder()
+
+    with recorder.span("retrieval", {"api_key": "secret", "query": "logic"}) as span:
+        span.set_output({"count": 3})
+
+    assert recorder.events[0]["event"] == "start"
+    assert recorder.events[0]["name"] == "retrieval"
+    assert recorder.events[0]["metadata"]["api_key"] == "[REDACTED]"
+    assert recorder.events[-1]["event"] == "end"
+    assert recorder.events[-1]["output"] == {"count": 3}
+
+
+def test_span_recorder_captures_error():
+    recorder = InMemorySpanRecorder()
+
+    with pytest.raises(ValueError):
+        with recorder.span("llm"):
+            raise ValueError("bad response")
+
+    assert recorder.events[-1]["event"] == "error"
+    assert recorder.events[-1]["error_type"] == "ValueError"

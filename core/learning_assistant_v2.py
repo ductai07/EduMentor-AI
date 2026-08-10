@@ -26,6 +26,7 @@ from core.evidence import format_source_references
 from core.llm_client import LLMClient
 from core.llm_gateway import LLMGatewayRunnable
 from core.model_policy import select_model_route
+from core.observability import NullSpanRecorder, SpanRecorder
 from core.policy import evaluate_input_policy
 from core.reliability import filter_sources_by_score, retry_async
 from retrievers.ensemble_retriever import EnsembleRetriever
@@ -56,8 +57,10 @@ class LearningAssistant:
                  model_name: str = config.LLM_MODEL_NAME,
                  api_key: Optional[str] = config.GOOGLE_API_KEY,
                  temperature: float = config.LLM_TEMPERATURE,
-                 llm_client: Optional[LLMClient] = None):
+                 llm_client: Optional[LLMClient] = None,
+                 span_recorder: Optional[SpanRecorder] = None):
         self.api_key = api_key
+        self.span_recorder = span_recorder or NullSpanRecorder()
         self.llm_client = llm_client or LLMClient(
             base_url=config.LITELLM_BASE_URL,
             api_key=config.LITELLM_MASTER_KEY,
@@ -212,16 +215,21 @@ class LearningAssistant:
     async def _retrieve_context_node(self, state: AssistantState) -> Dict[str, Any]:
         question = state["question"]
         try:
-            results = await retry_async(
-                lambda: asyncio.wait_for(
-                    self.retriever.search(question, top_k=config.RETRIEVER_TOP_K),
-                    timeout=15.0,
-                ),
-                attempts=config.RETRY_ATTEMPTS,
-                backoff_seconds=config.RETRY_BACKOFF_SECONDS,
-                retry_exceptions=(TimeoutError, ConnectionError, asyncio.TimeoutError),
-            )
-            results = filter_sources_by_score(results, config.RETRIEVAL_MIN_SCORE)
+            with self.span_recorder.span(
+                "retrieval",
+                {"top_k": config.RETRIEVER_TOP_K, "min_score": config.RETRIEVAL_MIN_SCORE},
+            ) as span:
+                results = await retry_async(
+                    lambda: asyncio.wait_for(
+                        self.retriever.search(question, top_k=config.RETRIEVER_TOP_K),
+                        timeout=15.0,
+                    ),
+                    attempts=config.RETRY_ATTEMPTS,
+                    backoff_seconds=config.RETRY_BACKOFF_SECONDS,
+                    retry_exceptions=(TimeoutError, ConnectionError, asyncio.TimeoutError),
+                )
+                results = filter_sources_by_score(results, config.RETRIEVAL_MIN_SCORE)
+                span.set_output({"source_count": len(results)})
             if results:
                 context = "\n\n".join([f"[Nguồn {i+1}]: {doc.get('text', '').strip()}" for i, doc in enumerate(results)])
                 return {"context": context, "sources": results}
@@ -270,7 +278,9 @@ class LearningAssistant:
             return {"tool_outputs": {"error": "Không có công cụ nào được chọn."}}
         tool_kwargs = {k: v for k, v in state.items() if v is not None}
         try:
-            result = await self.tool_registry.execute_tool(tool_name, **tool_kwargs)
+            with self.span_recorder.span("tool_execution", {"tool": tool_name}) as span:
+                result = await self.tool_registry.execute_tool(tool_name, **tool_kwargs)
+                span.set_output({"tool": tool_name, "type": type(result).__name__})
             return {"tool_outputs": {tool_name: result}}
         except Exception as e:
             return {"tool_outputs": {tool_name: f"Lỗi khi thực thi công cụ '{tool_name}': {str(e)}"}}
@@ -329,7 +339,12 @@ class LearningAssistant:
         chain = prompt | self._llm_for("response", requires_grounding=requires_grounding) | StrOutputParser()
 
         try:
-            response = await chain.ainvoke(input_dict)
+            with self.span_recorder.span(
+                "response_generation",
+                {"route_decision": route_decision, "requires_grounding": requires_grounding},
+            ) as span:
+                response = await chain.ainvoke(input_dict)
+                span.set_output({"chars": len(response or "")})
             # We will save history to DB in the main answer method, not here.
             # self.memory.save_context({"question": question}, {"response": response}) # Keep Langchain memory update for now
             return {"response": response}

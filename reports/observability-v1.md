@@ -7,6 +7,8 @@ Date: 2026-08-10
 - Trace metadata contract in `core/observability.py`.
 - User identifiers are hashed before trace metadata export.
 - Secret-like keys are recursively redacted.
+- Runtime span recorder abstraction with `NullSpanRecorder`, `InMemorySpanRecorder`, and optional `LangfuseSpanRecorder`.
+- LangGraph assistant spans for retrieval, tool execution, and response generation.
 
 ## Trace Fields
 
@@ -19,8 +21,13 @@ Date: 2026-08-10
 - policy_version
 - index_version
 
-## Pending Runtime Wiring
+## Runtime Spans
 
-- Langfuse spans for FastAPI request, LangGraph nodes, retriever, tools, and LLM calls.
-- Dashboard screenshot after local/staging stack is running.
+- `retrieval`: top_k, minimum score threshold, source count.
+- `tool_execution`: selected tool and output type.
+- `response_generation`: route decision, grounding requirement, response length.
+
+## Pending Runtime Evidence
+
+- Langfuse dashboard screenshot after local/staging stack is running.
 - Redacted trace export sample.
