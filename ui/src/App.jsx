@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, Link, Outlet } from "react-router-dom"; // Imp
 import Sidebar from "./components/Sidebar";
 import ChatInterface from "./components/ChatInterface";
 import Tools from "./components/Tools";
-import NavBar from "./components/Navbar";
+import NavBar from "./components/NavBar";
 import FileUploader from "./components/FileUploader";
 import Login from "./components/Login"; // Import Login
 import Register from "./components/Register"; // Import Register
