@@ -125,3 +125,16 @@ API được thiết kế với 3 endpoint chính:
    - Tích hợp RAG cho câu trả lời chính xác
 
  
+# Production RAG/LLMOps Evidence
+
+This repository now includes a production hardening plan and first implementation slices:
+
+- Plan: `plans/20260810-edumentor-production-rag-llmops/`
+- Architecture: `docs/architecture.md`
+- Deployment guide: `docs/deployment.md`
+- Eval harness: `evals/`
+- Reports: `reports/`
+- Tests: `python -m pytest -q`
+- Compose validation: `docker compose config`
+
+Current verified baseline: config/security tests, health/readiness tests, evidence ID contract, offline eval metrics, LLM gateway boundary, deterministic guardrails, cache key contract, checkpoint contract, observability metadata, and deployment skeleton.

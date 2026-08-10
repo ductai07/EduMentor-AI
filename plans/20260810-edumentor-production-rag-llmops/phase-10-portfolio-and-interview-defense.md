@@ -27,3 +27,12 @@ Turn the production work into credible interview artifacts.
 
 - Every CV claim maps to code, tests, reports, screenshots, or deployment evidence.
 - No estimated metric is presented as measured.
+
+## Progress
+
+- [x] Add architecture document.
+- [x] Add ADRs for LLM gateway, versioned evidence, and Compose-before-Kubernetes.
+- [x] Add final production report.
+- [x] Add demo script.
+- [x] Add README production evidence section.
+- [ ] Add final dashboard screenshots after runtime observability is live.
