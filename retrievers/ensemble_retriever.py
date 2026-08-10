@@ -6,6 +6,8 @@ from typing import List, Dict, Optional, Any
 from pymilvus import Collection, connections, utility
 from sentence_transformers import SentenceTransformer, util
 from rank_bm25 import BM25Okapi
+from config import settings as config
+from core.cache import JsonCacheBackend, build_cache_key
 from core.evidence import normalize_retrieved_evidence
 
 class EnsembleRetriever:
@@ -14,9 +16,11 @@ class EnsembleRetriever:
     def __init__(self, collection_name: str, model_name: str = "all-MiniLM-L6-v2",
                  host: str = "localhost", port: str = "19530", vector_weight: float = 0.7,
                  bm25_weight: float = 0.3, top_k: int = 4, max_docs_bm25: int = 10000, 
-                 batch_size_load: int = 1000):
+                 batch_size_load: int = 1000, cache_backend: JsonCacheBackend | None = None,
+                 index_version: str = "unknown", cache_ttl_seconds: int = 300):
  
         self.collection_name = collection_name
+        self.model_name = model_name
         self.host = host
         self.port = port
         self.vector_weight = vector_weight
@@ -27,6 +31,9 @@ class EnsembleRetriever:
         self.collection = None
         self.bm25 = None
         self.bm25_docs = []
+        self.cache_backend = cache_backend
+        self.index_version = index_version
+        self.cache_ttl_seconds = cache_ttl_seconds
 
         # Load SentenceTransformer model
         self.model = SentenceTransformer(model_name)
@@ -84,6 +91,48 @@ class EnsembleRetriever:
             return []
 
         effective_top_k = top_k or self.top_k
+        cache_key = self._build_retrieval_cache_key(query, effective_top_k, filter_metadata)
+        if self.cache_backend:
+            cached = await self.cache_backend.get_json(cache_key)
+            if cached is not None:
+                return cached
+
+        results = await self._search_uncached(query, effective_top_k, filter_metadata)
+        if self.cache_backend:
+            await self.cache_backend.set_json(cache_key, results, ttl_seconds=self.cache_ttl_seconds)
+        return results
+
+    def _build_retrieval_cache_key(
+        self,
+        query: str,
+        top_k: int,
+        filter_metadata: Optional[Dict],
+    ) -> str:
+        retriever_config = json.dumps(
+            {
+                "collection": self.collection_name,
+                "top_k": top_k,
+                "vector_weight": self.vector_weight,
+                "bm25_weight": self.bm25_weight,
+                "filter": filter_metadata or {},
+            },
+            sort_keys=True,
+        )
+        return build_cache_key(
+            namespace="retrieval",
+            environment=config.ENVIRONMENT,
+            course_id=(filter_metadata or {}).get("course_id", self.collection_name),
+            user_scope=(filter_metadata or {}).get("user_scope", "shared"),
+            query=query,
+            index_version=self.index_version,
+            embedding_model=self.model_name,
+            retriever_config=retriever_config,
+            model_route="retrieval-only",
+            prompt_version="none",
+            policy_version="policy-v1",
+        )
+
+    async def _search_uncached(self, query: str, effective_top_k: int, filter_metadata: Optional[Dict]) -> List[Dict[str, Any]]:
         loop = asyncio.get_running_loop()
         
         with ThreadPoolExecutor() as executor:

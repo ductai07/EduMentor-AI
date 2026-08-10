@@ -43,5 +43,5 @@ Reduce latency/cost without returning stale or cross-user data.
 - [x] Add version-aware cache key builder.
 - [x] Test course/user/index isolation.
 - [x] Add Redis service and `REDIS_URL` config.
-- [ ] Wire retrieval-result cache into retriever.
-- [ ] Add benchmark report with hit rate and p50/p95 delta.
+- [x] Wire retrieval-result cache into retriever.
+- [x] Add benchmark report with hit rate and p50/p95 delta.

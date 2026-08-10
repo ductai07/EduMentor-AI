@@ -1,5 +1,7 @@
 import hashlib
+import json
 import re
+from typing import Any, Protocol
 
 
 def normalize_query(query: str) -> str:
@@ -36,3 +38,45 @@ def build_cache_key(
         f"policy={policy_version}",
     ]
     return f"edumentor:{environment}:{namespace}:" + ":".join(dimensions)
+
+
+class JsonCacheBackend(Protocol):
+    async def get_json(self, key: str) -> Any | None:
+        ...
+
+    async def set_json(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
+        ...
+
+
+class InMemoryJsonCache:
+    def __init__(self) -> None:
+        self._values: dict[str, str] = {}
+        self.hits = 0
+        self.misses = 0
+
+    async def get_json(self, key: str) -> Any | None:
+        if key not in self._values:
+            self.misses += 1
+            return None
+        self.hits += 1
+        return json.loads(self._values[key])
+
+    async def set_json(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
+        self._values[key] = json.dumps(value, ensure_ascii=False, default=str)
+
+
+class RedisJsonCache:
+    def __init__(self, redis_url: str) -> None:
+        try:
+            from redis.asyncio import from_url
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("Install redis to use RedisJsonCache.") from exc
+        self._client = from_url(redis_url, decode_responses=True)
+
+    async def get_json(self, key: str) -> Any | None:
+        raw = await self._client.get(key)
+        return json.loads(raw) if raw else None
+
+    async def set_json(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
+        raw = json.dumps(value, ensure_ascii=False, default=str)
+        await self._client.set(key, raw, ex=ttl_seconds)

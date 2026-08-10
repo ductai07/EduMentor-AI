@@ -9,6 +9,7 @@ dependencies = [
     "httpx",
     "uvicorn",
     "python-dotenv",
+    "redis",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
     "pymongo",
