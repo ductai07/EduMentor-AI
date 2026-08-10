@@ -5,7 +5,6 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional, TypedDict
 from langchain.memory import ConversationBufferMemory
-from langchain_google_genai import GoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langgraph.graph import StateGraph, END
@@ -17,7 +16,6 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional, TypedDict
 from langchain.memory import ConversationBufferMemory # Keep for now, might remove later if fully switching to DB history
-from langchain_google_genai import GoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langgraph.graph import StateGraph, END
@@ -25,6 +23,9 @@ from pymongo.collection import Collection # Import Collection type hint
 from datetime import datetime, timezone # Add datetime import
 from config import settings as config
 from core.evidence import format_source_references
+from core.llm_client import LLMClient
+from core.llm_gateway import LLMGatewayRunnable
+from core.model_policy import select_model_route
 from core.policy import evaluate_input_policy
 from retrievers.ensemble_retriever import EnsembleRetriever
 from tools.tool_registry import ToolRegistry
@@ -53,9 +54,14 @@ class LearningAssistant:
                  collection_name: str = config.MILVUS_COLLECTION,
                  model_name: str = config.LLM_MODEL_NAME,
                  api_key: Optional[str] = config.GOOGLE_API_KEY,
-                 temperature: float = config.LLM_TEMPERATURE):
+                 temperature: float = config.LLM_TEMPERATURE,
+                 llm_client: Optional[LLMClient] = None):
         self.api_key = api_key
-        self.llm = GoogleGenerativeAI(model=model_name, google_api_key=self.api_key, temperature=temperature)
+        self.llm_client = llm_client or LLMClient(
+            base_url=config.LITELLM_BASE_URL,
+            api_key=config.LITELLM_MASTER_KEY,
+        )
+        self.llm = self._llm_for("tool_execution", requires_grounding=False)
         self.retriever = EnsembleRetriever(
             collection_name=collection_name,
             model_name=config.EMBEDDING_MODEL,
@@ -75,6 +81,14 @@ class LearningAssistant:
         # Fix: Instead of direct boolean check, compare with None
         if self.mongo_collection is None:
              logger.warning("LearningAssistant initialized without a valid MongoDB collection. Chat history saving will be disabled.")
+
+    def _llm_for(self, task_type: str, requires_grounding: bool) -> LLMGatewayRunnable:
+        route = select_model_route(task_type=task_type, requires_grounding=requires_grounding)
+        return LLMGatewayRunnable(
+            client=self.llm_client,
+            route=route,
+            metadata={"task_type": task_type, "route": route.name},
+        )
 
     # Remove the _connect_mongo method entirely
     # def _connect_mongo(self, host, port, db_name, collection_name): ...
@@ -159,7 +173,7 @@ class LearningAssistant:
         ])
 
         parser = JsonOutputParser()
-        chain = prompt | self.llm | parser
+        chain = prompt | self._llm_for("intent", requires_grounding=False) | parser
         input_dict = {"question": question, "chat_history": chat_history}
 
         try:
@@ -227,7 +241,7 @@ class LearningAssistant:
             """
         )
         
-        chain = prompt | self.llm | JsonOutputParser()
+        chain = prompt | self._llm_for("emotion", requires_grounding=False) | JsonOutputParser()
         
         try:
             result = await asyncio.wait_for(chain.ainvoke({"text": text}), timeout=10.0)
@@ -301,7 +315,8 @@ class LearningAssistant:
 
         human_template = "\n\n".join(human_template_parts) + "\n\nCâu trả lời của EduMentor:"
         prompt = ChatPromptTemplate.from_messages([("system", system_message), ("human", human_template)])
-        chain = prompt | self.llm | StrOutputParser()
+        requires_grounding = route_decision == "RAG" or bool(context)
+        chain = prompt | self._llm_for("response", requires_grounding=requires_grounding) | StrOutputParser()
 
         try:
             response = await chain.ainvoke(input_dict)

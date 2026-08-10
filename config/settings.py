@@ -76,6 +76,10 @@ class AppSettings:
     VECTOR_WEIGHT: float = 0.7
     BM25_WEIGHT: float = 0.3
 
+    ALLOWED_TOOLS: list[str] = field(default_factory=list)
+    TOOL_TIMEOUT_SECONDS: float = 20.0
+    TOOL_OUTPUT_MAX_CHARS: int = 12000
+
     API_PORT: int = 5000
     API_HOST: str = "0.0.0.0"
     API_RELOAD: bool = True
@@ -117,6 +121,9 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         RETRIEVER_TOP_K=_get_int(source, "RETRIEVER_TOP_K", 5),
         VECTOR_WEIGHT=_get_float(source, "VECTOR_WEIGHT", 0.7),
         BM25_WEIGHT=_get_float(source, "BM25_WEIGHT", 0.3),
+        ALLOWED_TOOLS=parse_csv_list(source.get("ALLOWED_TOOLS")),
+        TOOL_TIMEOUT_SECONDS=_get_float(source, "TOOL_TIMEOUT_SECONDS", 20.0),
+        TOOL_OUTPUT_MAX_CHARS=_get_int(source, "TOOL_OUTPUT_MAX_CHARS", 12000),
         API_PORT=_get_int(source, "API_PORT", 5000),
         API_HOST=source.get("API_HOST", "0.0.0.0"),
         API_RELOAD=_get_bool(source, "API_RELOAD", True),
@@ -172,6 +179,9 @@ LOGGING_LEVEL = SETTINGS.LOGGING_LEVEL
 RETRIEVER_TOP_K = SETTINGS.RETRIEVER_TOP_K
 VECTOR_WEIGHT = SETTINGS.VECTOR_WEIGHT
 BM25_WEIGHT = SETTINGS.BM25_WEIGHT
+ALLOWED_TOOLS = SETTINGS.ALLOWED_TOOLS
+TOOL_TIMEOUT_SECONDS = SETTINGS.TOOL_TIMEOUT_SECONDS
+TOOL_OUTPUT_MAX_CHARS = SETTINGS.TOOL_OUTPUT_MAX_CHARS
 
 API_PORT = SETTINGS.API_PORT
 API_HOST = SETTINGS.API_HOST

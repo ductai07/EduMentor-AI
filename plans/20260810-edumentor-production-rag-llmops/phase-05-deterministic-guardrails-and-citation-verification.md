@@ -10,6 +10,7 @@ Add layered safety gates for input, retrieval, tools, output, and academic integ
 - Create: `core/citations.py`
 - Create: `tests/core/test_policy.py`
 - Create: `tests/core/test_citations.py`
+- Create: `tests/tools/test_tool_registry_policy.py`
 - Modify: `core/learning_assistant_v2.py`
 - Modify: `tools/tool_registry.py`
 
@@ -25,8 +26,8 @@ Add layered safety gates for input, retrieval, tools, output, and academic integ
 - [x] Implement deterministic policy checks.
 - [x] Write citation verifier tests for invalid IDs and stale versions.
 - [x] Implement citation verification before final output.
-- [ ] Add tool allowlist, timeout, and output-size checks.
-- [ ] Commit phase.
+- [x] Add tool allowlist, timeout, and output-size checks.
+- [x] Commit phase.
 
 ## Acceptance Gate
 

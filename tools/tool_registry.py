@@ -1,6 +1,8 @@
 # tools/tool_registry.py
 from typing import Dict, Any, Optional, Callable, Coroutine, List, Union # Thêm Union
 from .base_tool import BaseTool
+import json
+from dataclasses import dataclass
 import inspect
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -13,13 +15,58 @@ from config import settings as config
 logging.basicConfig(level=config.LOGGING_LEVEL, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
+class ToolTimeoutError(TimeoutError):
+    pass
+
+
+class ToolOutputTooLargeError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class ToolExecutionPolicy:
+    allowed_tools: set[str] | None = None
+    timeout_seconds: float = 20.0
+    output_max_chars: int = 12000
+
+    def validate_allowed(self, name: str) -> None:
+        if self.allowed_tools and name not in self.allowed_tools:
+            raise PermissionError(f"Tool '{name}' is not allowed by policy.")
+
+    def validate_output(self, result: Any) -> None:
+        try:
+            rendered = json.dumps(result, ensure_ascii=False, default=str)
+        except TypeError:
+            rendered = str(result)
+        if len(rendered) > self.output_max_chars:
+            raise ToolOutputTooLargeError(
+                f"Tool output exceeds {self.output_max_chars} characters."
+            )
+
+
 class ToolRegistry:
     """Registers and manages tools for the Learning Assistant."""
 
-    def __init__(self, assistant: 'LearningAssistant'):
+    def __init__(
+        self,
+        assistant: 'LearningAssistant',
+        allowed_tools: set[str] | None = None,
+        tool_timeout_seconds: float | None = None,
+        tool_output_max_chars: int | None = None,
+    ):
         self.assistant = assistant
         self.tools: Dict[str, BaseTool] = {}
+        configured_allowed = getattr(config, "ALLOWED_TOOLS", [])
+        self._policy = ToolExecutionPolicy(
+            allowed_tools=allowed_tools if allowed_tools is not None else (set(configured_allowed) or None),
+            timeout_seconds=tool_timeout_seconds if tool_timeout_seconds is not None else getattr(config, "TOOL_TIMEOUT_SECONDS", 20.0),
+            output_max_chars=tool_output_max_chars if tool_output_max_chars is not None else getattr(config, "TOOL_OUTPUT_MAX_CHARS", 12000),
+        )
         logger.info("ToolRegistry initialized.")
+
+    def get_tool_policy(self) -> ToolExecutionPolicy:
+        return self._policy
 
     def register_tool(self, tool: BaseTool):
         """Registers a new tool instance."""
@@ -79,6 +126,7 @@ class ToolRegistry:
         if not tool:
             logger.error(f"Attempted to execute non-existent tool: {name}")
             raise ValueError(f"Tool '{name}' not found in registry.")
+        self._policy.validate_allowed(name)
 
         execute_method = self.get_tool_function(name)
         if not execute_method:
@@ -97,9 +145,16 @@ class ToolRegistry:
         logger.info(f"Executing async tool '{name}'...")
         try:
             # Gọi trực tiếp hàm async execute
-            result = await execute_method(assistant=self.assistant, **kwargs)
+            result = await asyncio.wait_for(
+                execute_method(assistant=self.assistant, **kwargs),
+                timeout=self._policy.timeout_seconds,
+            )
+            self._policy.validate_output(result)
             logger.info(f"Tool '{name}' execution finished successfully.")
             return result
+        except asyncio.TimeoutError as e:
+            logger.exception(f"Tool '{name}' timed out after {self._policy.timeout_seconds}s")
+            raise ToolTimeoutError(f"Tool '{name}' timed out.") from e
         except Exception as e:
             logger.exception(f"Error during execution of tool '{name}': {e}")
             # Trả về lỗi hoặc raise lại tùy theo cách graph xử lý

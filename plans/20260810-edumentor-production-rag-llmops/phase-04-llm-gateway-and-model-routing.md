@@ -7,10 +7,12 @@ Remove direct provider coupling from LangGraph and route through an OpenAI-compa
 ## Files
 
 - Create: `core/llm_client.py`
+- Create: `core/llm_gateway.py`
 - Create: `core/model_policy.py`
 - Create: `infrastructure/litellm/config.yaml`
 - Create: `tests/core/test_model_policy.py`
 - Create: `tests/core/test_llm_client.py`
+- Create: `tests/core/test_llm_gateway.py`
 - Modify: `core/learning_assistant_v2.py`
 - Modify: `docker-compose.yml`
 - Modify: `.env.example`
@@ -27,10 +29,10 @@ Remove direct provider coupling from LangGraph and route through an OpenAI-compa
 - [x] Implement minimal route policy.
 - [x] Write client tests for timeout/fallback using fake transport.
 - [x] Implement OpenAI-compatible async client wrapper.
-- [ ] Replace direct `GoogleGenerativeAI` use in graph nodes.
+- [x] Replace direct `GoogleGenerativeAI` use in graph nodes.
 - [x] Add LiteLLM config and Compose service.
 - [ ] Run eval comparison report.
-- [ ] Commit phase.
+- [x] Commit phase.
 
 ## Acceptance Gate
 
