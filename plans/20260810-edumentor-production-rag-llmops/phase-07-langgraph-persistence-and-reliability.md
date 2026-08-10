@@ -14,9 +14,9 @@ Make workflows restart-safe and failure-aware.
 
 ## Steps
 
-- [ ] Add thread ID contract.
+- [x] Add thread ID contract.
 - [ ] Add LangGraph checkpointer.
-- [ ] Test pause/resume.
+- [x] Test pause/resume.
 - [ ] Test restart recovery.
 - [ ] Add bounded retries for transient failures.
 - [ ] Add no-answer threshold.
@@ -26,4 +26,3 @@ Make workflows restart-safe and failure-aware.
 
 - Restart does not lose approved workflow state.
 - Provider down, Redis down, Milvus slow, and worker restart are handled with documented degradation.
-
