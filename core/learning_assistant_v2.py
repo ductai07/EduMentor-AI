@@ -25,6 +25,7 @@ from pymongo.collection import Collection # Import Collection type hint
 from datetime import datetime, timezone # Add datetime import
 from config import settings as config
 from core.evidence import format_source_references
+from core.policy import evaluate_input_policy
 from retrievers.ensemble_retriever import EnsembleRetriever
 from tools.tool_registry import ToolRegistry
 from tools import register_all_tools
@@ -414,6 +415,28 @@ class LearningAssistant:
     async def answer(self, question: str, username: Optional[str] = None) -> Dict[str, Any]:
         if not question or not isinstance(question, str) or not question.strip():
             return {"response": "Vui lòng cung cấp câu hỏi hợp lệ.", "sources": [], "tool_outputs": {}, "metadata": {"error": "invalid_input"}}
+
+        policy_decision = evaluate_input_policy(question)
+        if policy_decision.outcome == "block":
+            return {
+                "response": "Yeu cau nay bi chan boi chinh sach an toan cua EduMentor.",
+                "sources": [],
+                "tool_outputs": {},
+                "metadata": {
+                    "policy_outcome": policy_decision.outcome,
+                    "policy_reason": policy_decision.reason,
+                },
+            }
+        if policy_decision.outcome == "require_approval":
+            return {
+                "response": "Yeu cau nay can giang vien hoac nguoi quan ly phe duyet truoc khi thuc hien.",
+                "sources": [],
+                "tool_outputs": {},
+                "metadata": {
+                    "policy_outcome": policy_decision.outcome,
+                    "policy_reason": policy_decision.reason,
+                },
+            }
 
         # Load chat history from MongoDB if username is provided
         chat_history_str = await self._load_chat_history(username) if username else ""
