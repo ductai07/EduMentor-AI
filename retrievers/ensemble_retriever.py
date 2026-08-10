@@ -6,6 +6,7 @@ from typing import List, Dict, Optional, Any
 from pymilvus import Collection, connections, utility
 from sentence_transformers import SentenceTransformer, util
 from rank_bm25 import BM25Okapi
+from core.evidence import normalize_retrieved_evidence
 
 class EnsembleRetriever:
     """Retrieves documents using vector search (Milvus) and BM25  search."""
@@ -232,11 +233,15 @@ class EnsembleRetriever:
         for i, result in enumerate(results):
             final_score = 0.6 * similarities[i] + 0.4 * result["score"]
             metadata = result["metadata"] if isinstance(result["metadata"], dict) else json.loads(result["metadata"] or "{}")
-            processed_results.append({
-                "text": result["text"], "score": final_score, "source": ", ".join(result["sources"]),
-                "metadata": result["metadata"], "title": metadata.get("title", "N/A"),
-                "slide_number": metadata.get("slide_number", None), "timestamp": metadata.get("timestamp", None)
-            })
+            processed_results.append(
+                normalize_retrieved_evidence(
+                    text=result["text"],
+                    score=final_score,
+                    sources=result["sources"],
+                    metadata=metadata,
+                    title=metadata.get("title", "N/A"),
+                )
+            )
         processed_results.sort(key=lambda x: x["score"], reverse=True)
         return processed_results
 

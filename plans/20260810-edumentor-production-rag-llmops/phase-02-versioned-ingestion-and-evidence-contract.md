@@ -21,10 +21,10 @@ Make all retrieved evidence stable, versioned, and safe to cite/cache.
 
 ## Steps
 
-- [ ] Write failing unit tests for deterministic IDs and required evidence fields.
-- [ ] Implement `core/evidence.py`.
-- [ ] Update indexer metadata and primary IDs.
-- [ ] Update retriever output normalization.
+- [x] Write failing unit tests for deterministic IDs and required evidence fields.
+- [x] Implement `core/evidence.py`.
+- [x] Update indexer metadata and primary IDs.
+- [x] Update retriever output normalization.
 - [ ] Update source formatter to cite evidence IDs.
 - [ ] Add idempotent re-index test with mocked collection.
 - [ ] Commit phase.
@@ -34,4 +34,3 @@ Make all retrieved evidence stable, versioned, and safe to cite/cache.
 - Re-indexing same content yields same IDs.
 - A response cannot cite a source without document/chunk/version metadata.
 - Cache and eval phases can consume the evidence contract.
-

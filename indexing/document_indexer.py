@@ -10,6 +10,7 @@ import json
 import docx2txt
 import tempfile
 from docx import Document
+from core.evidence import build_index_version, ensure_evidence_metadata
  
 
 load_dotenv()
@@ -25,6 +26,7 @@ class DocumentIndexer:
         self.chunk_overlap = chunk_overlap
         self.model = SentenceTransformer(model_name)
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        self.index_version = build_index_version(collection_name, model_name, chunk_size, chunk_overlap)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=len, add_start_index=True
         )
@@ -49,14 +51,18 @@ class DocumentIndexer:
         langchain_docs = self.text_splitter.create_documents([text])
         chunks_data = []
         for doc in langchain_docs:
-            chunk_metadata = {
-                "source": os.path.basename(source_path) if isinstance(source_path, str) else "unknown",
-                "start_index": doc.metadata.get("start_index", -1),
-            }
-            if doc_metadata:
-                chunk_metadata.update(doc_metadata)
+            start_index = doc.metadata.get("start_index", -1)
             text_content = doc.page_content[:65535]  # Cắt ngắn nếu vượt quá giới hạn
-            chunks_data.append({"text": text_content, "metadata": chunk_metadata})
+            chunk_metadata = ensure_evidence_metadata(
+                metadata=doc_metadata,
+                source_path=source_path,
+                document_text=text,
+                chunk_text=text_content,
+                start_index=start_index,
+                index_version=self.index_version,
+            )
+            chunk_metadata["source"] = os.path.basename(source_path) if isinstance(source_path, str) else "unknown"
+            chunks_data.append({"id": chunk_metadata["chunk_id"], "text": text_content, "metadata": chunk_metadata})
         return chunks_data
 
     def index_document(self, file_path: str, file_type: Optional[str] = None, 
@@ -96,13 +102,13 @@ class DocumentIndexer:
             vectors = self.model.encode([chunk["text"] for chunk in chunks_data], batch_size=32).tolist()
             entities = [
                 {
-                    "id": i,
+                    "id": chunk["id"],
                     "text": chunk["text"],
                     "source": os.path.basename(file_path),
                     "metadata": json.dumps(chunk["metadata"], ensure_ascii=False),
                     "embedding": vector
                 }
-                for i, (chunk, vector) in enumerate(zip(chunks_data, vectors))
+                for chunk, vector in zip(chunks_data, vectors)
                 if chunk["text"].strip()
             ]
             
