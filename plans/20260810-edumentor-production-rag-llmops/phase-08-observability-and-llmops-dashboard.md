@@ -32,3 +32,10 @@ Trace every answer end-to-end and measure latency, tokens, cost, cache, fallback
 - Trace redaction prevents secrets and raw PII leaks.
 - Dashboard screenshot and runbook exist.
 
+## Progress
+
+- [x] Add trace metadata contract.
+- [x] Add user hashing and recursive secret redaction tests.
+- [x] Add `reports/observability-v1.md` skeleton.
+- [ ] Wire Langfuse/OpenTelemetry runtime spans.
+- [ ] Capture dashboard screenshot after stack is running.
