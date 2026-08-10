@@ -18,3 +18,14 @@ jobs:
         run: python -m pytest -q
       - name: Eval smoke
         run: python -m evals.run_eval --dataset evals/datasets/edumentor_v1.jsonl --output reports/eval-baseline-v1.json
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose config
+        run: docker compose config
+      - name: Build API image
+        run: docker build -t edumentor-api:test .
+      - name: Build UI image
+        run: docker build -t edumentor-ui:test ./ui
