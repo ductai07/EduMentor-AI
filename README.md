@@ -1,4 +1,71 @@
-# Sơ đồ dự kiến: 
+# EduMentor AI - Production RAG/LLMOps
+
+> Status: da di qua du cac phase bang vertical slices co test va commit. Chua phai full production-live, vi mot so acceptance gates van can runtime integration, benchmark, dashboard va deploy that.
+
+## Production Architecture
+
+```mermaid
+flowchart TB
+    User["Student / Lecturer"] --> UI["React Vite UI"]
+    UI --> API["FastAPI API<br/>request id, CORS, health, readiness"]
+
+    API --> Auth["JWT Auth<br/>MongoDB user profile"]
+    API --> Policy["Deterministic Guardrails<br/>injection, PII, academic integrity"]
+    Policy --> Graph["LangGraph Learning Assistant"]
+
+    Graph --> Intent["Intent and Tool Routing"]
+    Graph --> Retrieve["Hybrid Retrieval<br/>Milvus vector + BM25 + rerank"]
+    Retrieve --> Evidence["Versioned Evidence Contract<br/>document_id, chunk_id, doc_version, index_version"]
+    Evidence --> Milvus[("Milvus")]
+
+    Graph --> Tools["Learning Tools<br/>quiz, flashcards, summary, study plan, mind map"]
+    Graph --> LLMClient["LLM Gateway Boundary<br/>routes, timeout, fallback"]
+    LLMClient --> LiteLLM["LiteLLM Proxy"]
+    LiteLLM --> Cloud["Cloud Models"]
+    LiteLLM --> Local["Local OpenAI-compatible / vLLM-ready"]
+
+    Graph --> Citations["Citation Formatter + Verifier"]
+    API --> Obs["Trace Metadata<br/>request_id, thread_id, user_hash, versions"]
+    API --> Cache["Redis Cache Foundation<br/>tenant + index + model + prompt + policy aware"]
+    API --> Eval["Offline Eval Harness<br/>Recall, MRR, nDCG, citation metrics"]
+
+    subgraph Ops["Operations"]
+        Compose["Docker Compose<br/>API, UI, MongoDB, Redis, Milvus, LiteLLM"]
+        CI["GitHub Actions<br/>pytest + eval smoke"]
+        Reports["Reports + ADRs + Demo Script"]
+    end
+
+    API --> Compose
+    Eval --> CI
+    Obs --> Reports
+```
+
+## Phase Status
+
+| Phase | Status | Evidence |
+| --- | --- | --- |
+| 00. Plan | Done | `plans/20260810-edumentor-production-rag-llmops/` |
+| 00A. Repo cleanup | Done | `docs/repository-structure.md`, clean package markers |
+| 01. Production baseline | Done slice | `config/settings.py`, health/readiness, request id, pytest |
+| 02. Evidence contract | Done slice | deterministic document/chunk/index ids, normalized sources |
+| 03. Offline eval | Done smoke | eval harness + 3-row baseline; full 80-120 row dataset pending |
+| 04. LLM gateway | Done boundary | LiteLLM config and client; full graph migration pending |
+| 05. Guardrails | Done slice | deterministic policy and citation verifier; tool sandbox pending |
+| 06. Cache | Done contract | version-aware cache keys; runtime retrieval cache pending |
+| 07. Checkpointing | Done contract | thread/checkpoint model; LangGraph checkpointer pending |
+| 08. Observability | Done contract | trace metadata and redaction; live Langfuse spans pending |
+| 09. Deployment | Done skeleton | Docker/Compose/CI/runbook; fresh VM, HTTPS, backup/load pending |
+| 10. Portfolio evidence | Done docs | ADRs, architecture, final report, demo script |
+
+## Quick Verification
+
+```powershell
+python -m pytest -q
+python -m evals.run_eval --dataset evals/datasets/edumentor_v1.jsonl --output reports/eval-baseline-v1.json
+docker compose config
+```
+
+## Legacy Concept Diagram
 
 ```mermaid
 flowchart TD
