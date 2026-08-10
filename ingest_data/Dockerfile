@@ -18,6 +18,7 @@ COPY --chown=airflow:0 api ./api
 COPY --chown=airflow:0 auth ./auth
 COPY --chown=airflow:0 config ./config
 COPY --chown=airflow:0 core ./core
+COPY --chown=airflow:0 evals ./evals
 COPY --chown=airflow:0 indexing ./indexing
 COPY --chown=airflow:0 retrievers ./retrievers
 COPY --chown=airflow:0 tools ./tools
