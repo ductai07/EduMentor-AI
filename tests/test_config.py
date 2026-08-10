@@ -46,3 +46,17 @@ def test_development_allows_default_local_settings():
     )
 
     validate_production_settings(settings)
+
+
+def test_get_settings_reads_litellm_gateway_config():
+    from config.settings import get_settings
+
+    settings = get_settings(
+        {
+            "LITELLM_BASE_URL": "http://litellm:4000/v1",
+            "LITELLM_MASTER_KEY": "sk-test",
+        }
+    )
+
+    assert settings.LITELLM_BASE_URL == "http://litellm:4000/v1"
+    assert settings.LITELLM_MASTER_KEY == "sk-test"

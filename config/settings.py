@@ -59,6 +59,8 @@ class AppSettings:
     GOOGLE_API_KEY: str | None = None
     LLM_MODEL_NAME: str | None = None
     LLM_TEMPERATURE: float = 0.05
+    LITELLM_BASE_URL: str = "http://localhost:4000/v1"
+    LITELLM_MASTER_KEY: str = "sk-edumentor-dev"
 
     SERPER_API_KEY: str | None = None
     TAVILY_API_KEY: str | None = None
@@ -102,6 +104,8 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         GOOGLE_API_KEY=source.get("GOOGLE_API_KEY"),
         LLM_MODEL_NAME=source.get("LLM_MODEL_NAME"),
         LLM_TEMPERATURE=_get_float(source, "LLM_TEMPERATURE", 0.05),
+        LITELLM_BASE_URL=source.get("LITELLM_BASE_URL", "http://localhost:4000/v1"),
+        LITELLM_MASTER_KEY=source.get("LITELLM_MASTER_KEY", "sk-edumentor-dev"),
         SERPER_API_KEY=source.get("SERPER_API_KEY"),
         TAVILY_API_KEY=source.get("TAVILY_API_KEY"),
         CHUNK_SIZE=_get_int(source, "CHUNK_SIZE", 500),
@@ -148,6 +152,8 @@ EMBEDDING_MODEL = SETTINGS.EMBEDDING_MODEL
 GOOGLE_API_KEY = SETTINGS.GOOGLE_API_KEY
 LLM_MODEL_NAME = SETTINGS.LLM_MODEL_NAME
 LLM_TEMPERATURE = SETTINGS.LLM_TEMPERATURE
+LITELLM_BASE_URL = SETTINGS.LITELLM_BASE_URL
+LITELLM_MASTER_KEY = SETTINGS.LITELLM_MASTER_KEY
 
 SERPER_API_KEY = SETTINGS.SERPER_API_KEY
 TAVILY_API_KEY = SETTINGS.TAVILY_API_KEY

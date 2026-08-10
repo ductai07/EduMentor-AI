@@ -1,0 +1,35 @@
+model_list:
+  - model_name: edumentor-fast
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: os.environ/GOOGLE_API_KEY
+      timeout: 30
+
+  - model_name: edumentor-quality
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+      api_key: os.environ/GOOGLE_API_KEY
+      timeout: 60
+
+  - model_name: edumentor-local
+    litellm_params:
+      model: openai/local-model
+      api_base: os.environ/LOCAL_OPENAI_BASE_URL
+      api_key: os.environ/LOCAL_OPENAI_API_KEY
+      timeout: 60
+
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 3
+  cooldown_time: 30
+  retry_policy:
+    APIConnectionErrorRetries: 2
+    RateLimitErrorRetries: 2
+    APITimeoutErrorRetries: 2
+    ServiceUnavailableErrorRetries: 2
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true

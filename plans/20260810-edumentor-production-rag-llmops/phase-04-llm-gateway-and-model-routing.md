@@ -23,12 +23,12 @@ Remove direct provider coupling from LangGraph and route through an OpenAI-compa
 
 ## Steps
 
-- [ ] Write policy tests for route selection.
-- [ ] Implement minimal route policy.
-- [ ] Write client tests for timeout/fallback using fake transport.
-- [ ] Implement OpenAI-compatible async client wrapper.
+- [x] Write policy tests for route selection.
+- [x] Implement minimal route policy.
+- [x] Write client tests for timeout/fallback using fake transport.
+- [x] Implement OpenAI-compatible async client wrapper.
 - [ ] Replace direct `GoogleGenerativeAI` use in graph nodes.
-- [ ] Add LiteLLM config and Compose service.
+- [x] Add LiteLLM config and Compose service.
 - [ ] Run eval comparison report.
 - [ ] Commit phase.
 
@@ -37,4 +37,3 @@ Remove direct provider coupling from LangGraph and route through an OpenAI-compa
 - Changing provider requires config only.
 - Timeout, 429, 5xx, malformed response are tested.
 - Eval report compares at least two logical models.
-

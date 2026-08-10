@@ -1,5 +1,19 @@
 version: '3.8' 
 services:
+  litellm:
+    container_name: edumentor-litellm
+    image: ghcr.io/berriai/litellm:main-stable
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      LOCAL_OPENAI_BASE_URL: ${LOCAL_OPENAI_BASE_URL:-http://host.docker.internal:8001/v1}
+      LOCAL_OPENAI_API_KEY: ${LOCAL_OPENAI_API_KEY:-local-dev-key}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-edumentor-dev}
+    volumes:
+      - ./infrastructure/litellm/config.yaml:/app/config.yaml:ro
+    ports:
+      - "4000:4000"
+
   etcd:
     container_name: milvus-etcd
     image: quay.io/coreos/etcd:v3.5.5
