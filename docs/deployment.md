@@ -10,6 +10,8 @@ Production-like single VM deployment with Docker Compose before Kubernetes.
 - `.env` created from `.env.example`.
 - Strong `JWT_SECRET_KEY` for staging/production.
 - `CORS_ALLOW_ORIGINS` set to explicit HTTPS origins in staging/production.
+- One LiteLLM route configured through a cloud API key or local OpenAI-compatible model endpoint.
+- Optional Langfuse keys for runtime tracing.
 
 ## Commands
 
@@ -17,6 +19,8 @@ Production-like single VM deployment with Docker Compose before Kubernetes.
 docker compose up -d
 docker compose ps
 ```
+
+The Compose stack includes health checks and restart policies for API, UI, Redis, LiteLLM, and Milvus support services.
 
 ## Smoke Checks
 

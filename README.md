@@ -199,6 +199,8 @@ This repository now includes a production hardening plan and first implementatio
 - Plan: `plans/20260810-edumentor-production-rag-llmops/`
 - Architecture: `docs/architecture.md`
 - Deployment guide: `docs/deployment.md`
+- Self-hosting guide: `docs/self-hosting.md`
+- CV evidence map: `docs/cv-production-evidence.md`
 - Eval harness: `evals/`
 - Reports: `reports/`
 - Tests: `python -m pytest -q`

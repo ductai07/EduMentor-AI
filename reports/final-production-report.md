@@ -4,10 +4,18 @@ Date: 2026-08-10
 
 ## Verified In This Implementation Pass
 
-- Tests: `python -m pytest -q` -> 42 passed.
+- Tests: `python -m pytest -q` -> 56 passed.
 - Syntax check: AST parse across backend packages -> passed.
 - Eval smoke: `python -m evals.run_eval` -> generated zero baseline with empty predictions.
 - Compose validation: `docker compose config` -> exit 0.
+- Container gates: GitHub Actions includes API/UI Docker build checks.
+
+## Interview Evidence
+
+- Self-hosting guide: `docs/self-hosting.md`.
+- CV proof map: `docs/cv-production-evidence.md`.
+- Runtime observability report: `reports/observability-v1.md`.
+- Cache benchmark: `reports/cache-benchmark-v1.md`.
 
 ## Commits
 
