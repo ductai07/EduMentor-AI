@@ -7,7 +7,9 @@ Make workflows restart-safe and failure-aware.
 ## Files
 
 - Create: `core/checkpointing.py`
+- Create: `core/reliability.py`
 - Create: `tests/core/test_checkpointing.py`
+- Create: `tests/core/test_reliability.py`
 - Create: `tests/integration/test_failure_modes.py`
 - Modify: `core/learning_assistant_v2.py`
 - Modify: `api/routes/chat.py`
@@ -18,9 +20,9 @@ Make workflows restart-safe and failure-aware.
 - [ ] Add LangGraph checkpointer.
 - [x] Test pause/resume.
 - [ ] Test restart recovery.
-- [ ] Add bounded retries for transient failures.
-- [ ] Add no-answer threshold.
-- [ ] Commit phase.
+- [x] Add bounded retries for transient failures.
+- [x] Add no-answer threshold.
+- [x] Commit phase.
 
 ## Acceptance Gate
 

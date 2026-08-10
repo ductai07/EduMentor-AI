@@ -27,6 +27,7 @@ from core.llm_client import LLMClient
 from core.llm_gateway import LLMGatewayRunnable
 from core.model_policy import select_model_route
 from core.policy import evaluate_input_policy
+from core.reliability import filter_sources_by_score, retry_async
 from retrievers.ensemble_retriever import EnsembleRetriever
 from tools.tool_registry import ToolRegistry
 from tools import register_all_tools
@@ -211,7 +212,16 @@ class LearningAssistant:
     async def _retrieve_context_node(self, state: AssistantState) -> Dict[str, Any]:
         question = state["question"]
         try:
-            results = await asyncio.wait_for(self.retriever.search(question, top_k=config.RETRIEVER_TOP_K), timeout=15.0)
+            results = await retry_async(
+                lambda: asyncio.wait_for(
+                    self.retriever.search(question, top_k=config.RETRIEVER_TOP_K),
+                    timeout=15.0,
+                ),
+                attempts=config.RETRY_ATTEMPTS,
+                backoff_seconds=config.RETRY_BACKOFF_SECONDS,
+                retry_exceptions=(TimeoutError, ConnectionError, asyncio.TimeoutError),
+            )
+            results = filter_sources_by_score(results, config.RETRIEVAL_MIN_SCORE)
             if results:
                 context = "\n\n".join([f"[Nguồn {i+1}]: {doc.get('text', '').strip()}" for i, doc in enumerate(results)])
                 return {"context": context, "sources": results}
