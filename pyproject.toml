@@ -1,0 +1,51 @@
+[project]
+name = "edumentor-ai"
+version = "0.1.0"
+description = "Production RAG and LLMOps learning assistant."
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "fastapi",
+    "email-validator",
+    "uvicorn",
+    "python-dotenv",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "pymongo",
+    "pymilvus",
+    "sentence-transformers",
+    "rank-bm25",
+    "langchain",
+    "langchain-core",
+    "langchain-google-genai",
+    "langgraph",
+    "mistralai",
+    "python-docx",
+    "docx2txt",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "api",
+    "api.routes",
+    "auth",
+    "config",
+    "core",
+    "indexing",
+    "retrievers",
+    "tools",
+    "utils",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

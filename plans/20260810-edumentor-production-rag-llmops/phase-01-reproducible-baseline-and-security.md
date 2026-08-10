@@ -25,15 +25,15 @@ Make the API start with validated production config, safe CORS, request IDs, hea
 
 ## Steps
 
-- [ ] Write failing tests for production secret validation and CORS allowlist parsing.
-- [ ] Run `python -m pytest tests/test_config.py -q` and confirm expected failure.
-- [ ] Implement typed settings and production validation.
-- [ ] Run `python -m pytest tests/test_config.py -q`.
-- [ ] Write failing tests for `/health`, `/ready`, and request ID header.
-- [ ] Run `python -m pytest tests/test_health.py -q` and confirm expected failure.
-- [ ] Implement health/readiness and request ID middleware.
-- [ ] Run targeted tests.
-- [ ] Run full Python tests available in repo.
+- [x] Write failing tests for production secret validation and CORS allowlist parsing.
+- [x] Run `python -m pytest tests/test_config.py -q` and confirm expected failure.
+- [x] Implement typed settings and production validation.
+- [x] Run `python -m pytest tests/test_config.py -q`.
+- [x] Write failing tests for `/health`, `/ready`, and request ID header.
+- [x] Run `python -m pytest tests/test_health.py -q` and confirm expected failure.
+- [x] Implement health/readiness and request ID middleware.
+- [x] Run targeted tests.
+- [x] Run full Python tests available in repo.
 - [ ] Commit source and test changes.
 
 ## Acceptance Gate
@@ -42,4 +42,3 @@ Make the API start with validated production config, safe CORS, request IDs, hea
 - CORS no longer uses wildcard by default in production.
 - Health is app-only; readiness checks dependencies.
 - Tests pass in a clean local Python environment.
-

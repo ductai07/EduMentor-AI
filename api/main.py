@@ -1,8 +1,9 @@
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api import state
@@ -10,8 +11,6 @@ from api.routes import auth, chat, health, learning, legacy_stats, quiz, tools, 
 from api.stats import router as stats_router
 from auth.utils import get_mongo_connection
 from config import settings as config
-from core.learning_assistant_v2 import LearningAssistant
-from indexing.document_indexer import DocumentIndexer
 
 
 logging.basicConfig(
@@ -41,6 +40,9 @@ async def lifespan(app: FastAPI):
         )
 
     try:
+        from core.learning_assistant_v2 import LearningAssistant
+        from indexing.document_indexer import DocumentIndexer
+
         state.assistant = LearningAssistant(
             mongo_collection=mongo_collection,
             collection_name=milvus_collection_name,
@@ -68,17 +70,30 @@ async def lifespan(app: FastAPI):
                 logger.error("Lỗi khi đóng DocumentIndexer: %s", exc)
 
 
-def create_app() -> FastAPI:
+def add_request_id_middleware(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+def create_app(enable_lifespan: bool = True) -> FastAPI:
+    config.validate_production_settings(config.SETTINGS)
     app = FastAPI(
         title="EduMentor API",
         description="API cho hệ thống hỗ trợ học tập EduMentor",
         version="2.0.0",
-        lifespan=lifespan,
+        lifespan=lifespan if enable_lifespan else None,
     )
+
+    add_request_id_middleware(app)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=config.CORS_ALLOW_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
