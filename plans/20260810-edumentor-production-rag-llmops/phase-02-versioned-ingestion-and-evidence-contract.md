@@ -25,7 +25,7 @@ Make all retrieved evidence stable, versioned, and safe to cite/cache.
 - [x] Implement `core/evidence.py`.
 - [x] Update indexer metadata and primary IDs.
 - [x] Update retriever output normalization.
-- [ ] Update source formatter to cite evidence IDs.
+- [x] Update source formatter to cite evidence IDs.
 - [ ] Add idempotent re-index test with mocked collection.
 - [ ] Commit phase.
 

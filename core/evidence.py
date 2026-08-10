@@ -111,3 +111,41 @@ def normalize_retrieved_evidence(
         "slide_number": parsed_metadata.get("slide_number"),
         "timestamp": parsed_metadata.get("timestamp"),
     }
+
+
+def format_source_references(sources: list[dict[str, Any]] | None, limit: int = 3) -> str:
+    if not sources:
+        return ""
+
+    lines = ["", "", "**Nguon tham khao:**"]
+    for index, source in enumerate(sources[:limit], start=1):
+        metadata = parse_metadata(source.get("metadata"))
+        source_file = (
+            metadata.get("original_filename")
+            or metadata.get("source_file")
+            or source.get("source_file")
+            or "Tai lieu"
+        )
+        page_number = source.get("page_number") or metadata.get("page_number")
+        slide_number = source.get("slide_number") or metadata.get("slide_number")
+        chunk_id = source.get("chunk_id") or metadata.get("chunk_id")
+        document_version = source.get("document_version") or metadata.get("document_version")
+        index_version = source.get("index_version") or metadata.get("index_version")
+
+        location = ""
+        if slide_number:
+            location = f" (Slide {slide_number})"
+        elif page_number:
+            location = f" (Trang {page_number})"
+
+        evidence_parts = []
+        if chunk_id:
+            evidence_parts.append(f"chunk={chunk_id}")
+        if document_version:
+            evidence_parts.append(f"doc_version={document_version}")
+        if index_version:
+            evidence_parts.append(f"index={index_version}")
+        evidence = f" [{'; '.join(evidence_parts)}]" if evidence_parts else ""
+        lines.append(f"{index}. Tu '{source_file}'{location}{evidence}")
+
+    return "\n".join(lines) + "\n"

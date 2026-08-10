@@ -4,6 +4,7 @@ from core.evidence import (
     build_index_version,
     content_hash,
     ensure_evidence_metadata,
+    format_source_references,
     normalize_retrieved_evidence,
 )
 
@@ -73,3 +74,25 @@ def test_normalize_retrieved_evidence_exposes_contract_fields():
     assert result["source_file"] == "intro.pdf"
     assert result["page_number"] == 2
     assert result["source"] == "vector, bm25"
+
+
+def test_format_source_references_includes_evidence_ids():
+    sources = [
+        {
+            "source_file": "intro.pdf",
+            "chunk_id": 123,
+            "document_version": "docv_a",
+            "index_version": "idx_a",
+            "page_number": 2,
+            "metadata": {"original_filename": "Intro.pdf"},
+        }
+    ]
+
+    formatted = format_source_references(sources)
+
+    assert "**Nguon tham khao:**" in formatted
+    assert "Intro.pdf" in formatted
+    assert "Trang 2" in formatted
+    assert "chunk=123" in formatted
+    assert "doc_version=docv_a" in formatted
+    assert "index=idx_a" in formatted

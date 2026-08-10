@@ -24,6 +24,7 @@ from langgraph.graph import StateGraph, END
 from pymongo.collection import Collection # Import Collection type hint
 from datetime import datetime, timezone # Add datetime import
 from config import settings as config
+from core.evidence import format_source_references
 from retrievers.ensemble_retriever import EnsembleRetriever
 from tools.tool_registry import ToolRegistry
 from tools import register_all_tools
@@ -353,7 +354,7 @@ class LearningAssistant:
                     elif page_num:
                         line += f" (Trang {page_num})"
                     sources_info += line + "\n"
-                response += sources_info
+                response += format_source_references(valid_sources)
             else:
                  logger.info("No valid sources found to display after filtering.")
 
