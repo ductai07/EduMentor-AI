@@ -22,12 +22,13 @@ Create a versioned offline RAG evaluation harness before tuning retrieval or mod
 
 ## Steps
 
-- [ ] Write tests for metric functions.
-- [ ] Implement metrics.
-- [ ] Add minimal dataset first, then expand to 80-120 rows.
-- [ ] Add retrieval eval runner.
-- [ ] Add answer eval runner with pinned judge prompt/model metadata.
-- [ ] Generate baseline report.
+- [x] Write tests for metric functions.
+- [x] Implement metrics.
+- [x] Add minimal dataset first.
+- [ ] Expand dataset to 80-120 rows.
+- [x] Add retrieval eval runner.
+- [x] Add answer eval runner with pinned judge prompt/model metadata.
+- [x] Generate baseline report.
 - [ ] Commit phase.
 
 ## Acceptance Gate
@@ -35,4 +36,3 @@ Create a versioned offline RAG evaluation harness before tuning retrieval or mod
 - Smoke eval runs in CI without network LLM calls.
 - Full eval can run manually with provider credentials.
 - Report includes raw output paths and 10 failure cases.
-
