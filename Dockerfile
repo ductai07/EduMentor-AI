@@ -17,8 +17,6 @@ COPY indexing ./indexing
 COPY retrievers ./retrievers
 COPY tools ./tools
 COPY utils ./utils
-COPY main.py ./main.py
-
 EXPOSE 5000
 
-CMD ["python", "main.py", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "5000"]

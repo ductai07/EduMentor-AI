@@ -9,4 +9,10 @@ volumes/
 *.pyc
 *.log
 artifacts/tmp/
+artifacts/generated/
+artifacts/local-state/
 reports/raw/
+uploads/
+data/
+!data/
+!data/.gitkeep

@@ -85,7 +85,7 @@ class AppSettings:
 
     API_PORT: int = 5000
     API_HOST: str = "0.0.0.0"
-    API_RELOAD: bool = True
+    API_RELOAD: bool = False
     API_TIMEOUT: int = 120
 
     CORS_ALLOW_ORIGINS: list[str] = field(default_factory=lambda: ["*"])
@@ -132,7 +132,7 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         RETRIEVAL_MIN_SCORE=_get_float(source, "RETRIEVAL_MIN_SCORE", 0.15),
         API_PORT=_get_int(source, "API_PORT", 5000),
         API_HOST=source.get("API_HOST", "0.0.0.0"),
-        API_RELOAD=_get_bool(source, "API_RELOAD", True),
+        API_RELOAD=_get_bool(source, "API_RELOAD", False),
         API_TIMEOUT=_get_int(source, "API_TIMEOUT", 120),
         CORS_ALLOW_ORIGINS=parse_csv_list(source.get("CORS_ALLOW_ORIGINS")) or ["*"],
     )
@@ -145,6 +145,8 @@ def validate_production_settings(settings: AppSettings) -> None:
         raise RuntimeError("JWT_SECRET_KEY must be set to a strong non-default value in production")
     if "*" in settings.CORS_ALLOW_ORIGINS:
         raise RuntimeError("CORS_ALLOW_ORIGINS must not contain '*' in production")
+    if settings.API_RELOAD:
+        raise RuntimeError("API_RELOAD must be disabled in production")
 
 
 SETTINGS = get_settings()
