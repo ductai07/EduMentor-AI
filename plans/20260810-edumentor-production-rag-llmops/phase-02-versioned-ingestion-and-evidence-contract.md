@@ -26,7 +26,8 @@ Make all retrieved evidence stable, versioned, and safe to cite/cache.
 - [x] Update indexer metadata and primary IDs.
 - [x] Update retriever output normalization.
 - [x] Update source formatter to cite evidence IDs.
-- [ ] Add idempotent re-index test with mocked collection.
+- [x] Add Airflow ingestion DAG with idempotency manifest.
+- [x] Add idempotent manifest test with mocked indexer.
 - [ ] Commit phase.
 
 ## Acceptance Gate

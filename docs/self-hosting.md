@@ -12,6 +12,7 @@ EduMentor can run as a production-like single-VM stack before moving to Kubernet
 | Vector DB | `standalone`, `etcd`, `minio` | Yes | Milvus standalone stack. |
 | Cache | `redis` | Yes | Retrieval cache and future semantic cache. |
 | LLM gateway | `litellm` | Yes | OpenAI-compatible model router/fallback boundary. |
+| Ingestion orchestration | Airflow in `ingest_data/` | Recommended | Batch document ingestion with manifest/idempotency. |
 | Observability | Langfuse | Recommended | Use cloud Langfuse or self-host separately. |
 | HTTPS | Caddy/Nginx/Traefik | Required for public prod | Terminate TLS and proxy to API/UI. |
 
@@ -53,6 +54,7 @@ python -m evals.run_eval --dataset evals/datasets/edumentor_v1.jsonl --output re
 - Keep `API_RELOAD=false`.
 - Configure one LiteLLM cloud or local model route.
 - For the default NVIDIA route, keep LiteLLM pointing at `edumentor-fast` and `edumentor-quality`; both resolve to `LLM_CHAT_MODEL`.
+- Start Airflow from `ingest_data/` for batch ingestion and keep `ingest_data/reports/manifest.json` as evidence.
 - Configure volume backups for MongoDB, Milvus, MinIO, and Redis.
 - Put UI/API behind HTTPS reverse proxy.
 - Capture Langfuse dashboard evidence after traffic.

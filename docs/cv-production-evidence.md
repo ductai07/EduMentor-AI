@@ -5,6 +5,7 @@ Use this document as the interview-facing proof map for EduMentor AI.
 ## Strong CV Bullets
 
 - Built a production-style educational RAG assistant with FastAPI, React, LangGraph, Milvus, MongoDB, Redis, and LiteLLM.
+- Added an Airflow ingestion layer for batch document indexing with idempotency manifest evidence.
 - Implemented versioned evidence IDs for document, chunk, and index lineage to reduce stale citation risk.
 - Routed LLM calls through an OpenAI-compatible LiteLLM gateway with NVIDIA NIM/OpenAI-compatible model routing and fallback policy.
 - Added deterministic guardrails for prompt injection, PII exfiltration, academic-integrity approval, tool allowlists, timeouts, and output-size limits.
@@ -15,7 +16,7 @@ Use this document as the interview-facing proof map for EduMentor AI.
 
 ## Interview Architecture Story
 
-1. Documents are uploaded, parsed, chunked, embedded, and indexed into Milvus with stable metadata.
+1. Documents are uploaded or batch-ingested through Airflow, parsed, chunked, embedded, and indexed into Milvus with stable metadata.
 2. Questions enter FastAPI, pass deterministic policy checks, and route through LangGraph.
 3. Retrieval uses hybrid vector/BM25, reranking, score thresholding, retries, and version-aware caching.
 4. Model calls go through LiteLLM, not direct provider SDKs, so provider changes are configuration-driven.
@@ -28,4 +29,4 @@ Use this document as the interview-facing proof map for EduMentor AI.
 - Live Langfuse dashboard screenshot is pending until the stack or cloud project is configured.
 - Eval dataset is still a smoke dataset; a real course benchmark needs 80-120 reviewed examples.
 - Fresh VM deploy, HTTPS, backup/restore, and load-test reports still need a real target environment.
-- Full ingestion orchestration with Airflow/Prefect is not implemented yet; indexing is app/script driven.
+- Airflow is implemented, but a live Airflow UI screenshot is still pending until the stack is run.

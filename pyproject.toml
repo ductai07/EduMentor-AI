@@ -45,6 +45,7 @@ packages = [
     "core",
     "evals",
     "indexing",
+    "ingest_data",
     "retrievers",
     "tools",
     "utils",

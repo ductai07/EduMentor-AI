@@ -30,11 +30,13 @@ flowchart TB
     API --> Eval["Offline Eval Harness<br/>Recall, MRR, nDCG, citation metrics"]
 
     subgraph Ops["Operations"]
+        Airflow["Airflow Ingestion<br/>document pipeline + manifest"]
         Compose["Docker Compose<br/>API, UI, MongoDB, Redis, Milvus, LiteLLM"]
         CI["GitHub Actions<br/>pytest + eval smoke"]
         Reports["Reports + ADRs + Demo Script"]
     end
 
+    Evidence --> Airflow
     API --> Compose
     Eval --> CI
     Obs --> Reports
@@ -201,6 +203,7 @@ This repository now includes a production hardening plan and first implementatio
 - Deployment guide: `docs/deployment.md`
 - Self-hosting guide: `docs/self-hosting.md`
 - CV evidence map: `docs/cv-production-evidence.md`
+- Airflow ingestion: `ingest_data/`
 - Eval harness: `evals/`
 - Reports: `reports/`
 - Tests: `python -m pytest -q`

@@ -12,6 +12,11 @@ artifacts/tmp/
 artifacts/generated/
 artifacts/local-state/
 reports/raw/
+ingest_data/logs/
+ingest_data/reports/*
+!ingest_data/reports/.gitkeep
+ingest_data/source_documents/*
+!ingest_data/source_documents/.gitkeep
 uploads/
 data/
 !data/
