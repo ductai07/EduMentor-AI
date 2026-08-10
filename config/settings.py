@@ -61,6 +61,7 @@ class AppSettings:
     LLM_TEMPERATURE: float = 0.05
     LITELLM_BASE_URL: str = "http://localhost:4000/v1"
     LITELLM_MASTER_KEY: str = "sk-edumentor-dev"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     SERPER_API_KEY: str | None = None
     TAVILY_API_KEY: str | None = None
@@ -106,6 +107,7 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         LLM_TEMPERATURE=_get_float(source, "LLM_TEMPERATURE", 0.05),
         LITELLM_BASE_URL=source.get("LITELLM_BASE_URL", "http://localhost:4000/v1"),
         LITELLM_MASTER_KEY=source.get("LITELLM_MASTER_KEY", "sk-edumentor-dev"),
+        REDIS_URL=source.get("REDIS_URL", "redis://localhost:6379/0"),
         SERPER_API_KEY=source.get("SERPER_API_KEY"),
         TAVILY_API_KEY=source.get("TAVILY_API_KEY"),
         CHUNK_SIZE=_get_int(source, "CHUNK_SIZE", 500),
@@ -154,6 +156,7 @@ LLM_MODEL_NAME = SETTINGS.LLM_MODEL_NAME
 LLM_TEMPERATURE = SETTINGS.LLM_TEMPERATURE
 LITELLM_BASE_URL = SETTINGS.LITELLM_BASE_URL
 LITELLM_MASTER_KEY = SETTINGS.LITELLM_MASTER_KEY
+REDIS_URL = SETTINGS.REDIS_URL
 
 SERPER_API_KEY = SETTINGS.SERPER_API_KEY
 TAVILY_API_KEY = SETTINGS.TAVILY_API_KEY

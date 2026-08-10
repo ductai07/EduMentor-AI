@@ -38,3 +38,10 @@ Reduce latency/cost without returning stale or cross-user data.
 - Re-index invalidates old retrieval results.
 - Report includes hit rate, p50/p95, and token/cost delta.
 
+## Progress
+
+- [x] Add version-aware cache key builder.
+- [x] Test course/user/index isolation.
+- [x] Add Redis service and `REDIS_URL` config.
+- [ ] Wire retrieval-result cache into retriever.
+- [ ] Add benchmark report with hit rate and p50/p95 delta.
