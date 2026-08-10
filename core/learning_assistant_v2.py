@@ -4,19 +4,8 @@ import re
 import asyncio
 import logging
 from typing import List, Dict, Any, Optional, TypedDict
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
-from langgraph.graph import StateGraph, END
-import os
-import json
-from langchain.prompts import PromptTemplate
-import re
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, TypedDict
-from langchain.memory import ConversationBufferMemory # Keep for now, might remove later if fully switching to DB history
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langgraph.graph import StateGraph, END
 from pymongo.collection import Collection # Import Collection type hint
@@ -75,8 +64,6 @@ class LearningAssistant:
             bm25_weight=config.BM25_WEIGHT,
             top_k=config.RETRIEVER_TOP_K
         )
-        # Keep Langchain memory for now, might phase out later
-        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False, output_key="response")
         self.tool_registry = ToolRegistry(self)
         self._register_default_tools()
         self.workflow = self._setup_workflow()

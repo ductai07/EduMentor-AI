@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Optional, Any
 from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType, utility
 from sentence_transformers import SentenceTransformer
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from mistralai import Mistral
 from pathlib import Path
 from dotenv import load_dotenv

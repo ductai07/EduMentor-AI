@@ -4,8 +4,12 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
 COPY pyproject.toml ./
+
+RUN pip install --no-cache-dir --upgrade pip && python -c "import subprocess, sys, tomllib; deps = tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', *deps])"
+
 COPY api ./api
 COPY auth ./auth
 COPY config ./config
@@ -16,8 +20,6 @@ COPY retrievers ./retrievers
 COPY tools ./tools
 COPY utils ./utils
 COPY ingest_data ./ingest_data
-
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -e .
 
 EXPOSE 5000
 

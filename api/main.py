@@ -47,7 +47,14 @@ async def lifespan(app: FastAPI):
             mongo_collection=mongo_collection,
             collection_name=milvus_collection_name,
         )
-        state.document_indexer = DocumentIndexer(collection_name=milvus_collection_name)
+        state.document_indexer = DocumentIndexer(
+            collection_name=milvus_collection_name,
+            model_name=config.EMBEDDING_MODEL,
+            host=config.MILVUS_HOST,
+            port=config.MILVUS_PORT,
+            chunk_size=config.CHUNK_SIZE,
+            chunk_overlap=config.CHUNK_OVERLAP,
+        )
         logger.info("Khởi tạo LearningAssistant và DocumentIndexer thành công")
         yield
     except Exception as exc:
