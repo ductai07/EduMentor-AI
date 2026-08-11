@@ -80,6 +80,7 @@ class AppSettings:
     CHUNK_OVERLAP: int = 50
 
     UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
     LOGGING_LEVEL: str = "INFO"
 
     RETRIEVER_TOP_K: int = 5
@@ -142,6 +143,7 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         CHUNK_SIZE=_get_int(source, "CHUNK_SIZE", 500),
         CHUNK_OVERLAP=_get_int(source, "CHUNK_OVERLAP", 50),
         UPLOAD_DIR=source.get("UPLOAD_DIR", "uploads"),
+        MAX_UPLOAD_BYTES=_get_int(source, "MAX_UPLOAD_BYTES", 25 * 1024 * 1024),
         LOGGING_LEVEL=source.get("LOGGING_LEVEL", "INFO").upper(),
         RETRIEVER_TOP_K=_get_int(source, "RETRIEVER_TOP_K", 5),
         VECTOR_WEIGHT=_get_float(source, "VECTOR_WEIGHT", 0.7),
@@ -218,6 +220,7 @@ CHUNK_SIZE = SETTINGS.CHUNK_SIZE
 CHUNK_OVERLAP = SETTINGS.CHUNK_OVERLAP
 
 UPLOAD_DIR = SETTINGS.UPLOAD_DIR
+MAX_UPLOAD_BYTES = SETTINGS.MAX_UPLOAD_BYTES
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 LOGGING_LEVEL = SETTINGS.LOGGING_LEVEL
