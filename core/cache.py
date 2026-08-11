@@ -80,3 +80,6 @@ class RedisJsonCache:
     async def set_json(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         raw = json.dumps(value, ensure_ascii=False, default=str)
         await self._client.set(key, raw, ex=ttl_seconds)
+
+    async def close(self) -> None:
+        await self._client.aclose()

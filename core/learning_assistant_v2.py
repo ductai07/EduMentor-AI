@@ -11,6 +11,8 @@ from langgraph.graph import StateGraph, END
 from pymongo.collection import Collection # Import Collection type hint
 from datetime import datetime, timezone # Add datetime import
 from config import settings as config
+from core.cache import JsonCacheBackend
+from core.citations import CitationVerificationError, verify_citations
 from core.evidence import format_source_references
 from core.llm_client import LLMClient
 from core.llm_gateway import LLMGatewayRunnable
@@ -47,7 +49,9 @@ class LearningAssistant:
                  api_key: Optional[str] = config.GOOGLE_API_KEY,
                  temperature: float = config.LLM_TEMPERATURE,
                  llm_client: Optional[LLMClient] = None,
-                 span_recorder: Optional[SpanRecorder] = None):
+                 span_recorder: Optional[SpanRecorder] = None,
+                 cache_backend: Optional[JsonCacheBackend] = None,
+                 index_version: str = "unknown"):
         self.api_key = api_key
         self.span_recorder = span_recorder or NullSpanRecorder()
         self.llm_client = llm_client or LLMClient(
@@ -62,7 +66,9 @@ class LearningAssistant:
             port=config.MILVUS_PORT,
             vector_weight=config.VECTOR_WEIGHT,
             bm25_weight=config.BM25_WEIGHT,
-            top_k=config.RETRIEVER_TOP_K
+            top_k=config.RETRIEVER_TOP_K,
+            cache_backend=cache_backend,
+            index_version=index_version,
         )
         self.tool_registry = ToolRegistry(self)
         self._register_default_tools()
@@ -358,6 +364,29 @@ class LearningAssistant:
                     valid_sources.append(src)
 
             if valid_sources:
+                cited_chunk_ids = [
+                    source.get("chunk_id")
+                    for source in valid_sources
+                    if source.get("chunk_id") is not None
+                ]
+                if len(cited_chunk_ids) != len(valid_sources):
+                    logger.warning("Citation verification failed: missing chunk ID")
+                    return {
+                        "response": "Unable to verify sources for this response.",
+                        "sources": [],
+                    }
+                try:
+                    verify_citations(
+                        cited_chunk_ids,
+                        valid_sources,
+                        self.retriever.index_version,
+                    )
+                except CitationVerificationError as exc:
+                    logger.warning("Citation verification failed: %s", exc)
+                    return {
+                        "response": "Unable to verify sources for this response.",
+                        "sources": [],
+                    }
                 sources_info = "\n\n**Nguồn tham khảo:**\n"
                 for i, src in enumerate(valid_sources[:3]): # Limit to top 3 valid sources
                     # Try to get metadata if it's a string needing parsing, otherwise access directly

@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     mongo_collection = None
-    milvus_collection_name = os.getenv("MILVUS_COLLECTION_NAME", config.DEFAULT_COLLECTION_NAME)
+    runtime_dependencies = None
+    milvus_collection_name = os.getenv("MILVUS_COLLECTION_NAME", config.MILVUS_COLLECTION)
     logger.info("Starting EduMentor API with Milvus collection: %s", milvus_collection_name)
 
     try:
@@ -41,11 +42,19 @@ async def lifespan(app: FastAPI):
 
     try:
         from core.learning_assistant_v2 import LearningAssistant
+        from core.runtime import build_runtime_dependencies
         from indexing.document_indexer import DocumentIndexer
 
+        runtime_dependencies = build_runtime_dependencies(
+            config,
+            collection_name=milvus_collection_name,
+        )
         state.assistant = LearningAssistant(
             mongo_collection=mongo_collection,
             collection_name=milvus_collection_name,
+            cache_backend=runtime_dependencies.cache_backend,
+            span_recorder=runtime_dependencies.span_recorder,
+            index_version=runtime_dependencies.index_version,
         )
         state.document_indexer = DocumentIndexer(
             collection_name=milvus_collection_name,
@@ -75,6 +84,12 @@ async def lifespan(app: FastAPI):
                 logger.info("DocumentIndexer closed")
             except Exception as exc:
                 logger.error("Lỗi khi đóng DocumentIndexer: %s", exc)
+        if runtime_dependencies:
+            try:
+                await runtime_dependencies.close()
+                logger.info("Runtime dependencies closed")
+            except Exception as exc:
+                logger.error("Error closing runtime dependencies: %s", exc)
 
 
 def add_request_id_middleware(app: FastAPI) -> None:
