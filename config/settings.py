@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from typing import Mapping
+from urllib.parse import urlsplit
 
 try:
     from dotenv import load_dotenv
@@ -67,6 +68,7 @@ class AppSettings:
     LITELLM_BASE_URL: str = "http://localhost:4000/v1"
     LITELLM_MASTER_KEY: str = "sk-edumentor-dev"
     REDIS_URL: str = "redis://localhost:6379/0"
+    CHECKPOINT_DATABASE_URL: str = "postgresql://edumentor:edumentor@localhost:5432/edumentor"
     LANGFUSE_HOST: str | None = None
     LANGFUSE_PUBLIC_KEY: str | None = None
     LANGFUSE_SECRET_KEY: str | None = None
@@ -128,6 +130,10 @@ def get_settings(env: Mapping[str, str] | None = None) -> AppSettings:
         LITELLM_BASE_URL=source.get("LITELLM_BASE_URL", "http://localhost:4000/v1"),
         LITELLM_MASTER_KEY=source.get("LITELLM_MASTER_KEY", "sk-edumentor-dev"),
         REDIS_URL=source.get("REDIS_URL", "redis://localhost:6379/0"),
+        CHECKPOINT_DATABASE_URL=source.get(
+            "CHECKPOINT_DATABASE_URL",
+            "postgresql://edumentor:edumentor@localhost:5432/edumentor",
+        ),
         LANGFUSE_HOST=source.get("LANGFUSE_HOST"),
         LANGFUSE_PUBLIC_KEY=source.get("LANGFUSE_PUBLIC_KEY"),
         LANGFUSE_SECRET_KEY=source.get("LANGFUSE_SECRET_KEY"),
@@ -163,6 +169,11 @@ def validate_production_settings(settings: AppSettings) -> None:
         raise RuntimeError("CORS_ALLOW_ORIGINS must not contain '*' in production")
     if settings.API_RELOAD:
         raise RuntimeError("API_RELOAD must be disabled in production")
+    checkpoint_password = urlsplit(settings.CHECKPOINT_DATABASE_URL).password
+    if not checkpoint_password or checkpoint_password == "edumentor":
+        raise RuntimeError(
+            "CHECKPOINT_DATABASE_URL must use a non-default database password in production"
+        )
 
 
 SETTINGS = get_settings()
@@ -195,6 +206,7 @@ EMBEDDING_DIMENSIONS = SETTINGS.EMBEDDING_DIMENSIONS
 LITELLM_BASE_URL = SETTINGS.LITELLM_BASE_URL
 LITELLM_MASTER_KEY = SETTINGS.LITELLM_MASTER_KEY
 REDIS_URL = SETTINGS.REDIS_URL
+CHECKPOINT_DATABASE_URL = SETTINGS.CHECKPOINT_DATABASE_URL
 LANGFUSE_HOST = SETTINGS.LANGFUSE_HOST
 LANGFUSE_PUBLIC_KEY = SETTINGS.LANGFUSE_PUBLIC_KEY
 LANGFUSE_SECRET_KEY = SETTINGS.LANGFUSE_SECRET_KEY

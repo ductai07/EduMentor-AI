@@ -23,6 +23,8 @@ dependencies = [
     "langchain-text-splitters",
     "langchain-google-genai",
     "langgraph",
+    "langgraph-checkpoint-postgres",
+    "psycopg[binary,pool]",
     "langfuse",
     "mistralai",
     "python-docx",

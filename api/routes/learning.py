@@ -36,7 +36,11 @@ async def ask_question(
             request.question[:100],
         )
         result = await asyncio.wait_for(
-            state.assistant.answer(request.question, username=username),
+            state.assistant.answer(
+                request.question,
+                username=username,
+                session_id=request.session_id,
+            ),
             timeout=API_TIMEOUT,
         )
 
@@ -51,6 +55,7 @@ async def ask_question(
             "timestamp": asyncio.get_event_loop().time(),
             "route_decision": result.get("metadata", {}).get("route_decision"),
             "selected_tool": result.get("metadata", {}).get("selected_tool"),
+            "thread_id": result.get("metadata", {}).get("thread_id"),
             "executed_tools": list(result.get("tool_outputs", {}).keys())
             if result.get("tool_outputs")
             else [],

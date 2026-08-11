@@ -12,6 +12,7 @@ from pymongo.collection import Collection # Import Collection type hint
 from datetime import datetime, timezone # Add datetime import
 from config import settings as config
 from core.cache import JsonCacheBackend
+from core.checkpointing import build_graph_config
 from core.citations import CitationVerificationError, verify_citations
 from core.evidence import format_source_references
 from core.llm_client import LLMClient
@@ -51,7 +52,8 @@ class LearningAssistant:
                  llm_client: Optional[LLMClient] = None,
                  span_recorder: Optional[SpanRecorder] = None,
                  cache_backend: Optional[JsonCacheBackend] = None,
-                 index_version: str = "unknown"):
+                 index_version: str = "unknown",
+                 checkpointer: Any = None):
         self.api_key = api_key
         self.span_recorder = span_recorder or NullSpanRecorder()
         self.llm_client = llm_client or LLMClient(
@@ -72,6 +74,7 @@ class LearningAssistant:
         )
         self.tool_registry = ToolRegistry(self)
         self._register_default_tools()
+        self.checkpointer = checkpointer
         self.workflow = self._setup_workflow()
         # Store the passed-in MongoDB collection
         self.mongo_collection = mongo_collection
@@ -119,7 +122,7 @@ class LearningAssistant:
         workflow.add_edge("execute_tool", "generate_response")
         workflow.add_edge("generate_response", "format_sources")
         workflow.add_edge("format_sources", END)
-        return workflow.compile()
+        return workflow.compile(checkpointer=self.checkpointer)
 
     def _route_after_intent(self, state: AssistantState) -> str:
         decision = state.get("route_decision")
@@ -468,7 +471,12 @@ class LearningAssistant:
             return ""
 
     # Modify answer method to accept username
-    async def answer(self, question: str, username: Optional[str] = None) -> Dict[str, Any]:
+    async def answer(
+        self,
+        question: str,
+        username: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if not question or not isinstance(question, str) or not question.strip():
             return {"response": "Vui lòng cung cấp câu hỏi hợp lệ.", "sources": [], "tool_outputs": {}, "metadata": {"error": "invalid_input"}}
 
@@ -511,7 +519,11 @@ class LearningAssistant:
         )
 
         try:
-            final_state = await self.workflow.ainvoke(initial_state, config={"recursion_limit": 15})
+            graph_config = build_graph_config(
+                user_id=username or "anonymous",
+                session_id=session_id or "default",
+            )
+            final_state = await self.workflow.ainvoke(initial_state, config=graph_config)
 
             # Save chat history to MongoDB if username is provided and response exists
             final_response = final_state.get("response")
@@ -525,7 +537,8 @@ class LearningAssistant:
                 "metadata": {
                     "route_decision": final_state.get("route_decision"),
                     "selected_tool": final_state.get("selected_tool_name"),
-                    "emotion": final_state.get("emotion") 
+                    "emotion": final_state.get("emotion"),
+                    "thread_id": graph_config["configurable"]["thread_id"],
                 }
             }
         except Exception as e:

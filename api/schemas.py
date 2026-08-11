@@ -18,6 +18,7 @@ class SpecificToolInput(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
+    session_id: Optional[str] = None
 
 
 class QuizQuestion(BaseModel):
@@ -61,4 +62,3 @@ class ApiResponse(BaseModel):
 class ChatHistoryResponse(BaseModel):
     username: str
     history: List[Dict[str, Any]]
-

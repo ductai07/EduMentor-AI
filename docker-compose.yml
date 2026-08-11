@@ -13,6 +13,7 @@ services:
       MILVUS_HOST: standalone
       MILVUS_PORT: 19530
       REDIS_URL: redis://redis:6379/0
+      CHECKPOINT_DATABASE_URL: postgresql://${CHECKPOINT_DB_USER:-edumentor}:${CHECKPOINT_DB_PASSWORD:-edumentor}@checkpoint-db:5432/${CHECKPOINT_DB_NAME:-edumentor}
       LITELLM_BASE_URL: http://litellm:4000/v1
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-edumentor-dev}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
@@ -33,6 +34,8 @@ services:
       standalone:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      checkpoint-db:
         condition: service_healthy
       litellm:
         condition: service_healthy
@@ -78,6 +81,22 @@ services:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  checkpoint-db:
+    container_name: edumentor-checkpoint-db
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${CHECKPOINT_DB_USER:-edumentor}
+      POSTGRES_PASSWORD: ${CHECKPOINT_DB_PASSWORD:-edumentor}
+      POSTGRES_DB: ${CHECKPOINT_DB_NAME:-edumentor}
+    volumes:
+      - ./volumes/checkpoint-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHECKPOINT_DB_USER:-edumentor} -d ${CHECKPOINT_DB_NAME:-edumentor}"]
       interval: 10s
       timeout: 5s
       retries: 5

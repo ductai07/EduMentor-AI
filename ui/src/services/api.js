@@ -40,9 +40,20 @@ api.interceptors.response.use(
 
 // --- Exported API Functions ---
 
+const CHAT_SESSION_KEY = 'edumentorChatSessionId';
+
+const getChatSessionId = () => {
+  let sessionId = localStorage.getItem(CHAT_SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem(CHAT_SESSION_KEY, sessionId);
+  }
+  return sessionId;
+};
+
 // Chat
 export const askQuestion = async (question, token) => {
-  const response = await api.post('/ask', { question }, {
+  const response = await api.post('/ask', { question, session_id: getChatSessionId() }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data; // Expects { response: ..., sources: ..., metadata: ... }

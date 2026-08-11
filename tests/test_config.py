@@ -70,6 +70,19 @@ def test_production_rejects_reload_enabled():
         validate_production_settings(settings)
 
 
+def test_production_rejects_default_checkpoint_database_password():
+    from config.settings import AppSettings, validate_production_settings
+
+    settings = AppSettings(
+        ENVIRONMENT="production",
+        JWT_SECRET_KEY="a-production-secret-with-enough-length",
+        CORS_ALLOW_ORIGINS=["https://app.example.com"],
+    )
+
+    with pytest.raises(RuntimeError, match="CHECKPOINT_DATABASE_URL"):
+        validate_production_settings(settings)
+
+
 def test_get_settings_reads_litellm_gateway_config():
     from config.settings import get_settings
 

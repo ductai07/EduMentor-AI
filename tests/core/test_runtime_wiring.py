@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -129,3 +130,34 @@ async def test_source_formatter_rejects_evidence_without_chunk_id():
 
     assert result["sources"] == []
     assert result["response"] == "Unable to verify sources for this response."
+
+
+@pytest.mark.asyncio
+async def test_answer_invokes_graph_with_session_thread_config(monkeypatch):
+    from core.checkpointing import build_thread_id
+    from core.learning_assistant_v2 import LearningAssistant
+
+    captured = {}
+
+    class FakeWorkflow:
+        async def ainvoke(self, state, config):
+            captured["config"] = config
+            return {**state, "response": "Done"}
+
+    assistant = object.__new__(LearningAssistant)
+    assistant.workflow = FakeWorkflow()
+    assistant._load_chat_history = AsyncMock(return_value="")
+    assistant._analyze_emotion = AsyncMock(return_value={})
+    assistant._save_chat_history = AsyncMock()
+
+    result = await assistant.answer(
+        "What is retrieval?",
+        username="alice",
+        session_id="course-42",
+    )
+
+    assert result["response"] == "Done"
+    assert captured["config"]["configurable"]["thread_id"] == build_thread_id(
+        "alice",
+        "course-42",
+    )

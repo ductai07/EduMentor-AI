@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     mongo_collection = None
     runtime_dependencies = None
+    resource_stack = AsyncExitStack()
     milvus_collection_name = os.getenv("MILVUS_COLLECTION_NAME", config.MILVUS_COLLECTION)
     logger.info("Starting EduMentor API with Milvus collection: %s", milvus_collection_name)
 
@@ -41,10 +42,14 @@ async def lifespan(app: FastAPI):
         )
 
     try:
+        from core.checkpointing import open_postgres_checkpointer
         from core.learning_assistant_v2 import LearningAssistant
         from core.runtime import build_runtime_dependencies
         from indexing.document_indexer import DocumentIndexer
 
+        checkpointer = await resource_stack.enter_async_context(
+            open_postgres_checkpointer(config.CHECKPOINT_DATABASE_URL)
+        )
         runtime_dependencies = build_runtime_dependencies(
             config,
             collection_name=milvus_collection_name,
@@ -55,6 +60,7 @@ async def lifespan(app: FastAPI):
             cache_backend=runtime_dependencies.cache_backend,
             span_recorder=runtime_dependencies.span_recorder,
             index_version=runtime_dependencies.index_version,
+            checkpointer=checkpointer,
         )
         state.document_indexer = DocumentIndexer(
             collection_name=milvus_collection_name,
@@ -90,6 +96,7 @@ async def lifespan(app: FastAPI):
                 logger.info("Runtime dependencies closed")
             except Exception as exc:
                 logger.error("Error closing runtime dependencies: %s", exc)
+        await resource_stack.aclose()
 
 
 def add_request_id_middleware(app: FastAPI) -> None:
