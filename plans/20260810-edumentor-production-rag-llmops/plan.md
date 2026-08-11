@@ -32,7 +32,6 @@
 9. [Phase 07 - LangGraph Persistence And Reliability](phase-07-langgraph-persistence-and-reliability.md)
 10. [Phase 08 - Observability And LLMOps Dashboard](phase-08-observability-and-llmops-dashboard.md)
 11. [Phase 09 - Deployment And Operations](phase-09-deployment-and-operations.md)
-12. [Phase 10 - Portfolio And Interview Defense](phase-10-portfolio-and-interview-defense.md)
 
 ## Fast Track
 

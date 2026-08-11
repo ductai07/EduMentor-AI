@@ -1,212 +1,296 @@
-# EduMentor AI - Production RAG/LLMOps
+# EduMentor AI
 
-> Status: da di qua du cac phase bang vertical slices co test va commit. Chua phai full production-live, vi mot so acceptance gates van can runtime integration, benchmark, dashboard va deploy that.
+EduMentor AI is a document-grounded learning assistant for course materials. It combines hybrid retrieval, a LangGraph workflow, and focused study tools behind a FastAPI API and React interface.
 
-## Production Architecture
+## Overview
+
+The system supports two main workloads:
+
+- Online learning requests: question answering, summaries, quizzes, flashcards, study plans, concept explanations, mind maps, and progress tracking.
+- Offline document ingestion: scheduled parsing, chunking, embedding, indexing, and manifest generation through Apache Airflow.
+
+The application is designed to run as a self-hosted Docker Compose stack. Model calls are routed through LiteLLM to NVIDIA NIM or another OpenAI-compatible endpoint.
+
+## Features
+
+- Hybrid retrieval using Milvus vector search, BM25, weighted merging, and reranking.
+- Stable document, chunk, document-version, and index-version identifiers.
+- Redis retrieval cache scoped by tenant, index, model, prompt, and policy versions.
+- LangGraph orchestration for intent routing, retrieval, tool execution, and response generation.
+- LiteLLM gateway with logical model routes, timeouts, retries, and fallback support.
+- JWT authentication with MongoDB-backed users and conversation history.
+- Input policy checks for prompt injection, PII requests, and academic-integrity workflows.
+- Tool allowlists, execution timeouts, and output-size limits.
+- Liveness, readiness, request IDs, structured logs, and optional Langfuse tracing.
+- Airflow ingestion DAG with CeleryExecutor and a PostgreSQL metadata database.
+- Offline retrieval evaluation with Recall@K, MRR, and nDCG.
+
+## Architecture
 
 ```mermaid
-flowchart TB
-    User["Student / Lecturer"] --> UI["React Vite UI"]
-    UI --> API["FastAPI API<br/>request id, CORS, health, readiness"]
-
-    API --> Auth["JWT Auth<br/>MongoDB user profile"]
-    API --> Policy["Deterministic Guardrails<br/>injection, PII, academic integrity"]
-    Policy --> Graph["LangGraph Learning Assistant"]
-
-    Graph --> Intent["Intent and Tool Routing"]
-    Graph --> Retrieve["Hybrid Retrieval<br/>Milvus vector + BM25 + rerank"]
-    Retrieve --> Evidence["Versioned Evidence Contract<br/>document_id, chunk_id, doc_version, index_version"]
-    Evidence --> Milvus[("Milvus")]
-
-    Graph --> Tools["Learning Tools<br/>quiz, flashcards, summary, study plan, mind map"]
-    Graph --> LLMClient["LLM Gateway Boundary<br/>routes, timeout, fallback"]
-    LLMClient --> LiteLLM["LiteLLM Proxy"]
-    LiteLLM --> Cloud["Cloud Models"]
-    LiteLLM --> Local["Local OpenAI-compatible / vLLM-ready"]
-
-    Graph --> Citations["Citation Formatter + Verifier"]
-    API --> Obs["Trace Metadata<br/>request_id, thread_id, user_hash, versions"]
-    API --> Cache["Redis Cache Foundation<br/>tenant + index + model + prompt + policy aware"]
-    API --> Eval["Offline Eval Harness<br/>Recall, MRR, nDCG, citation metrics"]
-
-    subgraph Ops["Operations"]
-        Airflow["Airflow Ingestion<br/>document pipeline + manifest"]
-        Compose["Docker Compose<br/>API, UI, MongoDB, Redis, Milvus, LiteLLM"]
-        CI["GitHub Actions<br/>pytest + eval smoke"]
-        Reports["Reports + ADRs + Demo Script"]
+flowchart LR
+    subgraph CLIENT["Clients"]
+        Browser["React Web App"]
+        External["API Client"]
     end
 
-    Evidence --> Airflow
-    API --> Compose
-    Eval --> CI
-    Obs --> Reports
+    subgraph APPLICATION["Application"]
+        API["FastAPI"]
+        Auth["Authentication"]
+        Policy["Policy Checks"]
+        Graph["LangGraph Assistant"]
+        Retriever["Hybrid Retriever"]
+        Tools["Learning Tools"]
+        Citations["Evidence and Citations"]
+
+        API --> Auth --> Policy --> Graph
+        Graph --> Retriever --> Citations
+        Graph --> Tools
+        Citations --> API
+    end
+
+    subgraph STORAGE["Storage"]
+        Mongo[("MongoDB")]
+        Redis[("Redis")]
+        Milvus[("Milvus")]
+        MinIO[("MinIO")]
+        Etcd[("etcd")]
+    end
+
+    subgraph MODELS["Model Serving"]
+        Gateway["LiteLLM"]
+        NVIDIA["NVIDIA NIM"]
+        Local["OpenAI-compatible Server"]
+
+        Gateway --> NVIDIA
+        Gateway --> Local
+    end
+
+    subgraph INGESTION["Document Ingestion"]
+        Files["PDF / PPTX / DOCX / TXT"]
+        Airflow["Airflow DAG"]
+        Parse["Parse and Normalize"]
+        Chunk["Chunk and Version"]
+        Embed["Embed"]
+        Manifest["Ingestion Manifest"]
+
+        Files --> Airflow --> Parse --> Chunk --> Embed
+        Chunk --> Manifest
+    end
+
+    Browser --> API
+    External --> API
+    API --> Mongo
+    Retriever <--> Redis
+    Retriever --> Milvus
+    Graph --> Gateway
+    Embed --> Milvus
+    Milvus --> MinIO
+    Milvus --> Etcd
+
+    classDef client fill:#e8f1ff,stroke:#2563eb,color:#102a43;
+    classDef app fill:#e9f8ef,stroke:#16803c,color:#12351f;
+    classDef storage fill:#fff6db,stroke:#b7791f,color:#4a3210;
+    classDef model fill:#f4ecff,stroke:#7c3aed,color:#2e1065;
+    classDef ingest fill:#fff0ec,stroke:#c2410c,color:#431407;
+
+    class Browser,External client;
+    class API,Auth,Policy,Graph,Retriever,Tools,Citations app;
+    class Mongo,Redis,Milvus,MinIO,Etcd storage;
+    class Gateway,NVIDIA,Local model;
+    class Files,Airflow,Parse,Chunk,Embed,Manifest ingest;
 ```
 
-## Phase Status
+### Online request flow
 
-| Phase | Status | Evidence |
+1. FastAPI authenticates the request and assigns a request ID.
+2. Policy checks evaluate the input before it enters the assistant workflow.
+3. LangGraph routes the request to retrieval, a learning tool, or direct response generation.
+4. Retrieval combines vector and BM25 results, applies reranking, and retains source metadata.
+5. Model requests go through LiteLLM using an OpenAI-compatible API contract.
+6. The API returns the response with available source references.
+
+### Ingestion flow
+
+1. Source files are placed in `ingest_data/source_documents/`.
+2. The `edumentor_ingest_documents` DAG discovers and processes supported files.
+3. Documents are normalized, chunked, assigned stable identifiers, and embedded.
+4. Chunks and metadata are written to Milvus.
+5. The pipeline writes `ingest_data/reports/manifest.json` for run tracking and idempotency.
+
+## Technology Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, Vite, Tailwind CSS, Nginx |
+| API | FastAPI, Uvicorn, Pydantic |
+| Workflow | LangGraph, LangChain |
+| Retrieval | Milvus, BM25, Sentence Transformers |
+| Model gateway | LiteLLM, NVIDIA NIM, OpenAI-compatible APIs |
+| Persistence | MongoDB, Redis |
+| Ingestion | Apache Airflow, Celery, PostgreSQL |
+| Testing and evaluation | pytest, retrieval evaluation harness |
+| Runtime | Docker, Docker Compose |
+
+## Repository Layout
+
+```text
+EduMentor-AI/
+|-- api/                 # FastAPI application and routes
+|-- auth/                # Authentication and user models
+|-- config/              # Environment-based settings
+|-- core/                # Assistant, policies, gateway, cache, and reliability
+|-- indexing/            # Document parsing and indexing
+|-- retrievers/          # Hybrid retrieval pipeline
+|-- tools/               # Learning tools and execution policy
+|-- ingest_data/         # Airflow DAG and ingestion stack
+|-- evals/               # Offline retrieval evaluation
+|-- infrastructure/      # LiteLLM configuration
+|-- tests/               # Automated tests
+|-- ui/                  # React frontend
+|-- docs/                # Architecture and operations documentation
+|-- reports/             # Evaluation and benchmark outputs
+|-- docker-compose.yml   # Main application stack
+`-- pyproject.toml       # Python project configuration
+```
+
+## Prerequisites
+
+- Docker Desktop with Docker Compose v2
+- Git
+- Python 3.10-3.14 for local tests and evaluation
+- An NVIDIA API key or another configured OpenAI-compatible model endpoint
+- Network access to download the configured Sentence Transformers model, unless it is cached locally
+
+## Configuration
+
+Clone the repository and create a local environment file:
+
+```powershell
+git clone https://github.com/ductai07/EduMentor-AI.git
+Set-Location EduMentor-AI
+Copy-Item .env.example .env
+```
+
+Configure the model route in `.env`:
+
+```dotenv
+NVIDIA_API_KEY=your-nvidia-api-key
+NVIDIA_API_BASE_URL=https://integrate.api.nvidia.com/v1
+LLM_CHAT_MODEL=openai/gpt-oss-20b
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_DIMENSIONS=384
+```
+
+For non-local environments, set a random `JWT_SECRET_KEY`, explicit `CORS_ALLOW_ORIGINS`, and separate credentials for infrastructure services. Do not commit `.env`.
+
+The `EMBEDDING_API_BASE_URL` setting is reserved for an OpenAI-compatible embedding adapter. The current indexer loads `EMBEDDING_MODEL` through Sentence Transformers.
+
+## Run With Docker
+
+Start the application stack:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+The stack includes the API, web UI, MongoDB, Redis, LiteLLM, Milvus, MinIO, and etcd.
+
+### Local services
+
+| Service | Address |
+| --- | --- |
+| Web UI | `http://localhost:5173` |
+| API | `http://localhost:5000` |
+| OpenAPI documentation | `http://localhost:5000/docs` |
+| LiteLLM | `http://localhost:4000` |
+| Milvus | `localhost:19530` |
+| MinIO console | `http://localhost:9001` |
+
+Check the API after the containers start:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/health
+Invoke-RestMethod http://localhost:5000/ready
+```
+
+## Document Ingestion
+
+Start the Airflow stack after Milvus is available:
+
+```powershell
+docker compose -f ingest_data/docker-compose.yaml up -d --build
+docker compose -f ingest_data/docker-compose.yaml ps
+```
+
+Open `http://localhost:8080`. The local default credentials are `airflow` / `airflow`; change them before exposing Airflow outside a development machine.
+
+Place supported files in `ingest_data/source_documents/`, enable the `edumentor_ingest_documents` DAG, and trigger a run. The DAG can also be triggered from PowerShell:
+
+```powershell
+docker compose -f ingest_data/docker-compose.yaml exec airflow-scheduler `
+  airflow dags trigger edumentor_ingest_documents
+```
+
+## API
+
+| Method | Route | Description |
 | --- | --- | --- |
-| 00. Plan | Done | `plans/20260810-edumentor-production-rag-llmops/` |
-| 00A. Repo cleanup | Done | `docs/repository-structure.md`, clean package markers |
-| 01. Production baseline | Done slice | `config/settings.py`, health/readiness, request id, pytest |
-| 02. Evidence contract | Done slice | deterministic document/chunk/index ids, normalized sources |
-| 03. Offline eval | Done smoke | eval harness + 3-row baseline; full 80-120 row dataset pending |
-| 04. LLM gateway | Done boundary | LiteLLM config and client; full graph migration pending |
-| 05. Guardrails | Done slice | deterministic policy and citation verifier; tool sandbox pending |
-| 06. Cache | Done contract | version-aware cache keys; runtime retrieval cache pending |
-| 07. Checkpointing | Done contract | thread/checkpoint model; LangGraph checkpointer pending |
-| 08. Observability | Done contract | trace metadata and redaction; live Langfuse spans pending |
-| 09. Deployment | Done skeleton | Docker/Compose/CI/runbook; fresh VM, HTTPS, backup/load pending |
-| 10. Portfolio evidence | Done docs | ADRs, architecture, final report, demo script |
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/ready` | Assistant and indexer readiness |
+| `POST` | `/register` | Register a user |
+| `POST` | `/login` | Authenticate and issue a token |
+| `GET`, `PUT` | `/me` | Read or update the current user |
+| `POST` | `/upload` | Upload a document for background indexing |
+| `POST` | `/ask` | Submit a learning request |
+| `POST` | `/tools/{tool_name}` | Execute an available learning tool |
+| `POST` | `/tools/quiz/submit` | Submit quiz answers |
+| `GET` | `/chat_history/{username}` | Read authorized conversation history |
 
-## Quick Verification
+Request and response schemas are available from the OpenAPI page at `http://localhost:5000/docs`.
+
+## Testing And Evaluation
+
+Run the test suite:
 
 ```powershell
 python -m pytest -q
-python -m evals.run_eval --dataset evals/datasets/edumentor_v1.jsonl --output reports/eval-baseline-v1.json
-docker compose config
 ```
 
-## Legacy Concept Diagram
+Run the retrieval evaluation:
 
-```mermaid
-flowchart TD
-    subgraph Input_Processing ["Xử Lý Đầu Vào"]
-        direction TB
-        V["Video Bài Giảng"] -->|"Whisper (STT + Timestamps)"| TXT_A["Văn bản Audio + Timestamps"]
-        S["File Slide (PDF/PPTX)"] -->|"Trích xuất Text/OCR"| TXT_S["Văn bản Slide + Slide Numbers"]
-        V -->|"Vision (Keyframe + OCR)"| TXT_S_Vid["Văn bản Slide từ Video + Timestamps"]
-
-        TXT_A -->|"Chunking & Embedding"| DB[("Vector Database + Metadata: Timestamps, Slide , Source")]
-        TXT_S -->|"Chunking & Embedding"| DB
-        TXT_S_Vid -->|"Chunking & Embedding"| DB
-    end
-
-    subgraph Agent_Tools ["Agent & Tool"]
-        direction TB
-        UM["User Message"] --> RA{"Router Agent"}
-        RA -->|"RAG Query"| DB
-        DB -->|"Retrieved Context"| RA
-
-        RA -->|"Quyết định Tool"| T_RAG["/RAG Tool/"]
-        RA -->|"Quyết định Tool"| T_Web["/Web Search Tool/"]
-        RA -->|"Quyết định Tool"| T_Quiz["/Quiz Generator Tool/"]
-        RA -->|"Quyết định Tool"| T_Sum["/Summary Tool/"]
-        RA -->|"Quyết định Tool"| T_FC["/Flashcard Tool/"]
-        RA -->|"Quyết định Tool"| T_Plan["/Study Plan Tool/"]
-        RA -->|"Quyết định Tool"| T_Explain["/Concept Explainer Tool/"]
-        
-        T_RAG --> RA
-        T_Web -->|"External Info"| RA
-        T_Quiz --> RA
-        T_Sum --> RA
-        T_FC --> RA
-        T_Plan --> RA
-        T_Explain --> RA
-
-        DB -->|"Analyze Content"| PA["Phân tích Chủ động"]
-        PA -->|"Suggestions/Insights"| RA
-    end
-
-    subgraph Output_Generation ["OUTPUT "]
-        direction TB
-        RA -->|"Final Answer Generation"| LLM_Final["LLM - Generate Final Response"]
-        LLM_Final --> OUT_Text["Output Text"]
-
-        T_Sum -->|"Summary Text"| TTS["Text-to-Speech"]
-        TTS --> VC["Voice Customizer"] --> OUT_Audio["Output Audio Summary"]
-
-        RA -->|"Data for Viz"| VIZ["Tạo Trực quan hóa + Mindmap/Concept Links"]
-        VIZ --> OUT_Viz["Output Hình ảnh/Interactive"]
-
-        OUT_Text --> UserFeedback["User Feedback"]
-        UserFeedback --> RA
-    end
-
-
-
-
+```powershell
+python -m evals.run_eval `
+  --dataset evals/datasets/edumentor_v1.jsonl `
+  --predictions reports/raw/retrieval_predictions.json `
+  --output reports/eval-baseline-v1.json
 ```
 
+Validate the Compose files without starting containers:
 
+```powershell
+docker compose config --quiet
+docker compose -f ingest_data/docker-compose.yaml config --quiet
+```
 
+## Operations
 
+- [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment.md)
+- [Self-hosting](docs/self-hosting.md)
+- [Runbook](docs/runbook.md)
+- [Postmortem template](docs/postmortem-template.md)
+- [Architecture decisions](docs/adr/)
+- [Airflow ingestion](ingest_data/README.md)
 
+## Known Limitations
 
+- The included evaluation dataset is a small smoke dataset and is not a full course benchmark.
+- `EMBEDDING_API_BASE_URL` is configured but is not yet connected to indexing or retrieval.
+- Langfuse export requires an external or self-hosted Langfuse instance.
+- TLS termination, secrets management, and backup scheduling must be configured for the target deployment environment.
 
+## License
 
-
-## Cấu trúc API
-
-API được thiết kế với 3 endpoint chính:
-
-### 1. `/upload` - Xử lý và lập chỉ mục tài liệu
-
-**Quy trình:**
-- Sinh viên upload file (PDF, PPTX, DOCX, v.v.)
-- File được lưu vào thư mục uploads
-- Xử lý file đồng bộ:
-  - Trích xuất văn bản (PDF → PyMuPDF, PPTX → python-pptx, DOCX → python-docx)
-  - Chia nhỏ (chunking) bằng RecursiveCharacterTextSplitter
-  - Tạo embedding bằng SentenceTransformer
-  - Lưu vào Milvus với metadata (slide number, source)
-- Trả về kết quả (số tài liệu đã thêm)
-
-### 2. `/ask` - Truy vấn thông tin
-
-**Quy trình:**
-- Gọi LearningAssistant.answer
-- intent_analyzer_node phân tích ý định
-- Nếu là câu hỏi thông thường → RAG (truy xuất từ Milvus → sinh câu trả lời)
-- Nếu cần tool → định tuyến đến công cụ (quiz, flashcards, v.v.)
-- Trả về response với metadata (sources, slide number)
-
-### 3. `/tools` - Sử dụng công cụ học tập
-
-**Quy trình:**
-- Gọi công cụ trực tiếp qua ToolRegistry.execute_tool
-- Công cụ cũng có thể truy xuất ngữ cảnh từ Milvus (nếu cần, ví dụ: Quiz_Generator)
-
-## Các công cụ hỗ trợ
-
-- **Quiz_Generator**: Tạo câu hỏi trắc nghiệm từ tài liệu
-- **Flashcard_Generator**: Tạo thẻ ghi nhớ
-- **Study_Plan_Creator**: Tạo kế hoạch học tập
-- **Concept_Explainer**: Giải thích khái niệm
-- **Summary_Generator**: Tạo tóm tắt
-- **Mind_Map_Creator**: Tạo sơ đồ tư duy
-- **Progress_Tracker**: Theo dõi tiến độ học tập
-
-## Cải tiến
-
-1. **Xử lý tài liệu đa dạng**:
-   - Hỗ trợ nhiều định dạng: PDF, PPTX, DOCX, TXT
-   - Trích xuất văn bản với các thư viện chuyên biệt
-   - Lưu trữ metadata phong phú (slide number, source)
-
-2. **Retrieval thông minh**:
-   - EnsembleRetriever kết hợp tìm kiếm vector và BM25
-   - Cải thiện độ chính xác khi truy xuất thông tin
-
-3. **Agent Router thông minh**:
-   - Phân tích ý định người dùng
-   - Định tuyến đến công cụ phù hợp
-   - Tích hợp RAG cho câu trả lời chính xác
-
- 
-# Production RAG/LLMOps Evidence
-
-This repository now includes a production hardening plan and first implementation slices:
-
-- Plan: `plans/20260810-edumentor-production-rag-llmops/`
-- Architecture: `docs/architecture.md`
-- Deployment guide: `docs/deployment.md`
-- Self-hosting guide: `docs/self-hosting.md`
-- CV evidence map: `docs/cv-production-evidence.md`
-- Airflow ingestion: `ingest_data/`
-- Eval harness: `evals/`
-- Reports: `reports/`
-- Tests: `python -m pytest -q`
-- Compose validation: `docker compose config`
-
-Current verified baseline: config/security tests, health/readiness tests, evidence ID contract, offline eval metrics, LLM gateway boundary, deterministic guardrails, cache key contract, checkpoint contract, observability metadata, and deployment skeleton.
+No open-source license is currently included in this repository.
